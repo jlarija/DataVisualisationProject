@@ -1,18 +1,20 @@
 """
-variables_each_country = {}
+def get_var_each_country():
+    variables_each_country = {}
 
 
-for iso in df.iso_code.unique():
-    locate = df[df['iso_code'] == iso]['location'].iloc[0]
-    variables_each_country[locate] = []
-    nb_values = len(df[df['iso_code'] == iso])
-    columns_to_remove = ['iso_code', 'continent', 'location', 'date', 'tests_units']
-    for col in df.columns:
-        if col in columns_to_remove:
-            continue
-        nb_nan = df[df['iso_code'] == iso][col].isnull().sum()
-        if nb_nan < nb_values:
-            variables_each_country[locate].append(col)
+    for iso in df.iso_code.unique():
+        locate = df[df['iso_code'] == iso]['location'].iloc[0]
+        variables_each_country[locate] = []
+        nb_values = len(df[df['iso_code'] == iso])
+        columns_to_remove = ['iso_code', 'continent', 'location', 'date', 'tests_units']
+        for col in df.columns:
+            if col in columns_to_remove:
+                continue
+            nb_nan = df[df['iso_code'] == iso][col].isnull().sum()
+            if nb_nan < nb_values:
+                variables_each_country[locate].append(col)
+    return variables_each_country
 """
 
 
