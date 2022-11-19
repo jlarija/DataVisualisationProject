@@ -9,6 +9,19 @@ columns_fixed = ['gdp_per_capita', 'extreme_poverty', 'cardiovasc_death_rate', '
 
 
 def get_preprocessed_df(variables_each_country=None):
+    """
+    This functions returns the covid-19 dataframe with nan filled for the columns for which we have information at some
+    point. If a column only contains nan for a country, it will stay all nan. It also returns a dictionary containing
+    the columns that are not all nan for each country respectively.
+    Parameter
+    ----------
+    variables_each_country : the dictionary that is returned can be pre-built and given as argument, but not mandatory
+
+    Return
+    ------
+    new_df : pandas.DataFrame cleaned from its nans for meaningful columns
+    variables_each_country : the dictionary, to avoid computing it 2 times
+    """
     if variables_each_country is None:
         variables_each_country = get_var_each_country()
     url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
@@ -55,6 +68,7 @@ def get_preprocessed_df(variables_each_country=None):
 
 """
 def get_var_each_country():
+    
     variables_each_country = {}
 
 
@@ -74,6 +88,13 @@ def get_var_each_country():
 
 
 def get_var_each_country():
+    """
+    This functions returns a dictionary containing the columns that are not all nan for each country respectively.
+
+    Return
+    ------
+    variables_each_country : the dictionary, to avoid computing it 2 times.
+    """
     variables_each_country = {
         'Afghanistan': ['total_cases', 'new_cases', 'new_cases_smoothed', 'total_deaths', 'new_deaths',
                         'new_deaths_smoothed', 'total_cases_per_million', 'new_cases_per_million',
