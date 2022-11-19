@@ -1,3 +1,58 @@
+import math
+import pandas as pd
+columns_to_remove = ['iso_code', 'continent', 'location', 'date', 'tests_units']
+
+columns_fixed = ['gdp_per_capita', 'extreme_poverty', 'cardiovasc_death_rate', 'diabetes_prevalence',
+                 'female_smokers', 'male_smokers', 'handwashing_facilities', 'hospital_beds_per_thousand',
+                 'life_expectancy', 'human_development_index', 'population', 'population_density', 'median_age',
+                 'aged_65_older', 'aged_70_older', 'tests_units']
+
+
+def get_preprocessed_df(variables_each_country=None):
+    if variables_each_country is None:
+        variables_each_country = get_var_each_country()
+    url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
+    df = pd.read_csv(url)
+    i = 0
+    new_df = None
+    for country in df['location'].unique():
+
+        all_features = variables_each_country[country].copy()
+        all_features_not_fixed = variables_each_country[country].copy()
+
+        for column in columns_to_remove:
+            if column in all_features:
+                all_features.remove(column)
+            if column in all_features_not_fixed:
+                all_features_not_fixed.remove(column)
+        temp_col_fixed = []
+        for col in columns_fixed:
+            if col in all_features_not_fixed:
+                all_features_not_fixed.remove(col)
+                temp_col_fixed.append(col)
+
+        special_df = df[df['location'] == country][columns_to_remove]
+        special_df = special_df.reset_index(drop=True)
+        country_df = df[df['location'] == country][all_features]
+        country_df = country_df.reset_index(drop=True)
+        for col in all_features_not_fixed:
+            if math.isnan(country_df[col].iloc[0]):
+                country_df[col].iloc[0] = 0
+        country_df[all_features_not_fixed] = country_df[all_features_not_fixed].fillna(method='ffill')
+
+        for col in temp_col_fixed:
+            country_df[col] = country_df[col].fillna(method='bfill')
+        country_df = pd.concat([special_df, country_df], axis=1)
+
+        if i == 0:
+            new_df = country_df
+            i = i + 1
+        else:
+            new_df = pd.concat([new_df, country_df], axis=0, ignore_index=True)
+
+    return new_df, variables_each_country
+
+
 """
 def get_var_each_country():
     variables_each_country = {}
