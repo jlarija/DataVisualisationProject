@@ -51,23 +51,28 @@ app.layout = html.Div([
         }
     ),
     html.Div([
-        html.Label('Country'),
-        dcc.Dropdown([country for country in df['location'].unique()], df['location'][0], id='country-choice')
-    ], style={'width': '24%', 'float': 'left', 'display': 'inline-block'}),
-    html.Div([
-        html.Label('Variable'),
-        dcc.Dropdown([var for var in variables_first_country], variables_first_country[0], id='var-choice'),
-    ], style={'width': '24%', 'display': 'inline-block'}),
-    html.Br(),
-    html.Plaintext('Click on a coefficient to plot the corresponding variable'),
-    html.Div([
-        dash_table.DataTable(data=temp_df.to_dict('records'), columns=[{"name": i, "id": i, "selectable": True} for i in temp_df.columns],
-                             id='corr-table')
+        html.Div([
+            html.Label('Country'),
+            dcc.Dropdown([country for country in df['location'].unique()], df['location'][0], id='country-choice')
+        ], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
+        html.Div([
+            html.Label('Variable'),
+            dcc.Dropdown([var for var in variables_first_country], variables_first_country[0], id='var-choice'),
+        ], style={'width': '48%', 'display': 'inline-block'}),
+        html.Plaintext('Click on a coefficient to plot the corresponding variable')
     ], style={'width': '48%', 'display': 'inline-block'}),
+    html.Div([
+        dash_table.DataTable(data=temp_df.to_dict('records'),
+                             columns=[{"name": i, "id": i, "selectable": True} for i in temp_df.columns],
+                             id='corr-table')
+    ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
+    html.Br(),
+    html.Div([
+        dcc.Graph(id='corr-time-graph')
+    ], style={'width': '48%', 'float': 'left', 'display': 'inline-block', 'padding': '0 20'}),
     html.Div([
         dcc.Graph(id='corr-graph')
     ], style={'width': '48%', 'float': 'right', 'display': 'inline-block'})
-
 ])
 
 
@@ -221,6 +226,7 @@ def update_table_corr(country_choice, var_choice):
 
 
 @app.callback(
+    Output('corr-time-graph', 'figure'),
     Output('corr-graph', 'figure'),
     Input('country-choice', 'value'),
     Input('var-choice', 'value'),
@@ -244,13 +250,22 @@ def update_graphs(country_choice, var_choice, active_cell, data):
         go.Scatter(x=all_dates, y=data_2, name=var_clicked),
         secondary_y=True,
     )
-
+    fig.update_layout(title=str('Evolution of ' + var_choice + ' and ' + var_clicked + ' over time'))
     fig.update_xaxes(title_text='Dates')
 
     fig.update_yaxes(title_text=var_choice, secondary_y=False)
     fig.update_yaxes(title_text=var_clicked, secondary_y=True)
 
-    return fig
+    fig2 = px.scatter(x=data_1, y=data_2)
+    fig2.update_xaxes(title_text=var_choice)
+
+    fig2.update_yaxes(title_text=var_clicked)
+    fig2.update_layout(title=str(var_clicked + ' depending on ' + var_choice),
+                       xaxis={'autorange': False, 'range': [min(data_1), max(data_1)]},
+                       yaxis={'autorange': False, 'range': [min(data_2), max(data_2)]})
+    print(data_2)
+    print("min : ", min(data_2), "; max : ", max(data_2))
+    return fig, fig2
 
 
 if __name__ == "__main__":
