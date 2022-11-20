@@ -12,11 +12,12 @@ from utils import *
 
 app = Dash(__name__)
 
-# Comment the next line and uncomment the 3 after to do your tests to avoid loading time
+# Comment the next line and uncomment the 3 after to do your tests to avoid loading time, but the nans might fail your
+# tests
 df, variables_each_country = get_preprocessed_df()
-#url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
-#df = pd.read_csv(url)
-#variables_each_country = get_var_each_country()
+# url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
+# df = pd.read_csv(url)
+# variables_each_country = get_var_each_country()
 
 temp_df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
 
