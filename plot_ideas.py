@@ -15,13 +15,20 @@ app = Dash(__name__)
 # Comment the next line and uncomment the 3 after to do your tests to avoid loading time, but the nans might fail your
 # tests
 df, variables_each_country = get_preprocessed_df()
-# url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
-# df = pd.read_csv(url)
-# variables_each_country = get_var_each_country()
+#url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
+#df = pd.read_csv(url)
+#variables_each_country = get_var_each_country()
 
 temp_df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
 
+all_col = list(df.columns)
+for col in columns_to_remove:
+    all_col.remove(col)
+
 variables_first_country = variables_each_country[df['location'][0]]
+
+months_list = get_list_months(df)
+months_df = get_month_df(df)
 app.layout = html.Div([
     html.H1(
         'Evolution of multiple variables in time',
@@ -70,10 +77,38 @@ app.layout = html.Div([
     html.Br(),
     html.Div([
         dcc.Graph(id='corr-time-graph')
-    ], style={'width': '48%', 'float': 'left', 'display': 'inline-block', 'padding': '0 20'}),
+    ], style={'width': '48%', 'float': 'left', 'display': 'inline-block', 'padding': '0 20', 'margin-bottom': '5cm'}),
     html.Div([
         dcc.Graph(id='corr-graph')
-    ], style={'width': '48%', 'float': 'right', 'display': 'inline-block'})
+    ], style={'width': '48%', 'float': 'right', 'display': 'inline-block', 'margin-bottom': '5cm'}),
+
+    html.Br(),
+    html.H1(
+        'Variables dependencies for all countries',
+        style={
+            'textAlign': 'left',
+            'color': 'black'
+        }
+    ),
+    html.Div([
+        html.Div([
+            html.Label('x-axis'),
+            dcc.Dropdown(all_col, all_col[0], id='x-axis-dependence')
+        ], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
+        html.Div([
+            html.Label('y-axis'),
+            dcc.Dropdown(all_col, all_col[1], id='y-axis-dependence'),
+        ], style={'width': '48%', 'display': 'inline-block'}),
+    ], style={'margin-bottom': '0.5cm'}),
+    dcc.Graph(id='total-dependence-graph'),
+    dcc.Slider(
+        0,
+        len(months_list) - 1,
+        marks={i: str(months_list[i]) for i in range(len(months_list))},
+        updatemode='mouseup',
+        value=10,
+        id='month-slider-dependence'
+    )
 ])
 
 
@@ -152,6 +187,7 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, country_cont_r
                                             'title': {'font': {'color': color_hex}, 'text': variables_chosen[i]}}
 
     fig.update_layout(layout)
+    fig.update_layout(title='Evolution of the chosen variables over time')
 
     return fig
 
@@ -200,7 +236,7 @@ def update_table_corr(country_choice, var_choice):
         if 'hundred' not in var and 'smoothed' not in var and 'million' not in var and 'thousand' not in var:
             pos_variables_most_corr.append(var)
             pos_corr_coeffs.append(pos_corr[var])
-            if len(pos_variables_most_corr) == 3:
+            if len(pos_variables_most_corr) == 5:
                 break
 
     neg_corr = corr_mat[corr_mat[var_choice] < 0.0]
@@ -212,7 +248,7 @@ def update_table_corr(country_choice, var_choice):
     for var in neg_all_vars:
         neg_variables_most_corr.append(var)
         neg_corr_coeffs.append(neg_corr[var])
-        if len(neg_variables_most_corr) == 3:
+        if len(neg_variables_most_corr) == 5:
             break
     pos_variables_most_corr.extend(neg_variables_most_corr)
     pos_corr_coeffs.extend(neg_corr_coeffs)
@@ -264,9 +300,51 @@ def update_graphs(country_choice, var_choice, active_cell, data):
     fig2.update_layout(title=str(var_clicked + ' depending on ' + var_choice),
                        xaxis={'autorange': False, 'range': [min(data_1), max(data_1)]},
                        yaxis={'autorange': False, 'range': [min(data_2), max(data_2)]})
-    print(data_2)
-    print("min : ", min(data_2), "; max : ", max(data_2))
     return fig, fig2
+
+
+@app.callback(
+    Output('total-dependence-graph', 'figure'),
+    Input('x-axis-dependence', 'value'),
+    Input('y-axis-dependence', 'value'),
+    Input('month-slider-dependence', 'value'))
+def update_dependence_graphs(x_axis_var, y_axis_var, month):
+    month = months_list[month]
+    all_countries = months_df['location'].unique()
+    x_values = []
+    y_values = []
+    all_continents = []
+    pops = []
+    for country in all_countries:
+        country_df = months_df[months_df['location'] == country]
+        if x_axis_var in variables_each_country[country]:
+            country_df_x = country_df[['month', x_axis_var]]
+            if month in country_df_x['month'].unique():
+                x_values.append(country_df_x[country_df_x['month'] == month][x_axis_var].mean())
+            else:
+                x_values.append(0)
+        else:
+            x_values.append(0)
+
+        if y_axis_var in variables_each_country[country]:
+            country_df_y = country_df[['month', y_axis_var]]
+            if month in country_df_y['month'].unique():
+                y_values.append(country_df_y[country_df_y['month'] == month][y_axis_var].mean())
+            else:
+                y_values.append(0)
+        else:
+            y_values.append(0)
+
+        all_continents.append(country_df['continent'].iloc[0])
+        pops.append(country_df['population'].iloc[0])
+    new_df = pd.DataFrame({'country': all_countries, 'continent': all_continents, x_axis_var: x_values,
+                           y_axis_var: y_values, 'pop': pops})
+
+    fig = px.scatter(new_df, x=x_axis_var, y=y_axis_var,
+                     size="pop", color="continent", hover_name="country",
+                     size_max=55)
+
+    return fig
 
 
 if __name__ == "__main__":

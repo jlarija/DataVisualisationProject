@@ -3918,3 +3918,47 @@ def get_preprocessed_df(var_each_country=None):
             new_df = pd.concat([new_df, country_df], axis=0, ignore_index=True)
 
     return new_df, variables_each_country
+
+
+def get_list_months(df):
+    unique_dates = df['date'].unique()
+    str_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    months_list = [date_string[:7] for date_string in unique_dates]
+    final_list = []
+    j = 0
+    for month_year in months_list:
+        str_to_append = str_months[int(month_year[-2:]) - 1] + month_year[:4]
+        if str_to_append not in final_list:
+            if j == 0:
+                final_list.append(str_to_append)
+                j = j + 1
+                continue
+            new_month_idx = str_months.index(str_to_append[:3])
+            new_month_year = int(str_to_append[-4:])
+            last_month_idx = str_months.index(final_list[-1][:3])
+            last_month_year = int(final_list[-1][-4:])
+            if new_month_year <= last_month_year and new_month_idx < last_month_idx:
+                for i in range(len(final_list)):
+                    last_month_idx = str_months.index(final_list[i][:3])
+                    last_month_year = int(final_list[i][-4:])
+                    if new_month_year <= last_month_year and new_month_idx < last_month_idx:
+                        final_list.insert(i, str_to_append)
+                        break
+            else:
+                final_list.append(str_to_append)
+    return final_list
+
+
+def get_month_df(df):
+    transformed_dates = {}
+    unique_dates = df['date'].unique()
+    str_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    months = []
+    for date in unique_dates:
+        transformed_dates[date] = str_months[int(date[-5:-3]) - 1] + date[:4]
+    for date in df['date']:
+        months.append(transformed_dates[date])
+    new_df = df
+    new_df['month'] = months
+
+    return new_df
