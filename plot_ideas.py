@@ -1,14 +1,14 @@
-import pandas as pd
 from dash import Dash, html, dcc, Input, Output, State, dash_table
 from sklearn import linear_model
 import plotly.express as px
 from datetime import datetime, timedelta
-import math
 from plotly.subplots import make_subplots
-import plotly.io as pio
 import random
 import plotly.graph_objects as go
 from utils import *
+import warnings
+
+warnings.filterwarnings('ignore')
 
 app = Dash(__name__)
 
@@ -141,9 +141,30 @@ app.layout = html.Div([
         value=10,
         id='month-slider-dependence'
     ),
+
+    html.Br(),
+    html.H1(
+        'Predictions for the next 3 months',
+        style={
+            'textAlign': 'left',
+            'color': 'black'
+        }
+    ),
+    html.Div([
+        html.Label("Country"),
+        dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
+                     id='country-predictions'),
+
+        html.Br(),
+        html.Label("Variables to predict"),
+        dcc.Dropdown(variables_first_country, variables_first_country[0], id='var-to-pred')
+    ]),
+    dcc.Graph(id='predictions-graph'),
 ])
 
 
+#####################
+# Filtering
 @app.callback(
     Output('times-clicked', 'children'),
     Output('filtering-button', 'n_clicks'),
@@ -182,6 +203,8 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
         date_format='iso', orient='split')
 
 
+#######################
+# Multi variables
 @app.callback(
     Output('country-continent-choice', 'options'),
     Output('country-continent-choice', 'value'),
@@ -271,6 +294,8 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, country_cont_r
     return fig
 
 
+#######################
+# Correlations
 @app.callback(
     Output('country-choice', 'options'),
     Output('country-choice', 'value'),
@@ -400,6 +425,8 @@ def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
     return fig, fig2
 
 
+#######################
+# Dependencies
 @app.callback(
     Output('total-dependence-graph', 'figure'),
     Input('x-axis-dependence', 'value'),
@@ -443,6 +470,167 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, month_data):
     fig = px.scatter(new_df, x=x_axis_var, y=y_axis_var,
                      size="pop", color="continent", hover_name="country",
                      size_max=55)
+
+    return fig
+
+
+########################
+# Predictions
+@app.callback(
+    Output('country-predictions', 'options'),
+    Output('country-predictions', 'value'),
+    Input('df', 'data'))
+def change_available_countries(data):
+    used_df = pd.read_json(data, orient='split')
+    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
+
+    all_countries = used_df['location']
+    return all_countries, all_countries[0]
+
+
+@app.callback(
+    Output('var-to-pred', 'options'),
+    Output('var-to-pred', 'value'),
+    Input('country-predictions', 'value'))
+def var_for_country_pred(country_choice):
+    variables_to_show = variables_each_country[country_choice]
+    for col in columns_to_remove:
+        if col in variables_to_show:
+            variables_to_show.remove(col)
+    for col in columns_fixed:
+        if col in variables_to_show:
+            variables_to_show.remove(col)
+    return variables_to_show, variables_to_show[0]
+
+
+@app.callback(
+    Output('predictions-graph', 'figure'),
+    Input('country-predictions', 'value'),
+    Input('var-to-pred', 'value'),
+    Input('df', 'data'))
+def update_graph7(country_predict, data_to_predict, data):
+    data_used_for_prediction = ['total_cases', 'new_cases', 'reproduction_rate', 'stringency_index', 'new_tests',
+                                'positive_rate']
+    stored_df = pd.read_json(data, orient='split')
+    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
+    ##################
+    # data management
+    ##################
+    all_features = variables_each_country[country_predict]
+    updated_data_used_for_pred = []
+    for var in data_used_for_prediction:
+        if var in all_features:
+            updated_data_used_for_pred.append(var)
+    data_used_for_prediction = updated_data_used_for_pred
+    all_features_to_predict = data_used_for_prediction.copy()
+    if data_to_predict not in all_features_to_predict:
+        all_features_to_predict.append(data_to_predict)
+
+    for column in columns_to_remove:
+        if column in all_features:
+            all_features.remove(column)
+        if column in data_used_for_prediction:
+            data_used_for_prediction.remove(column)
+        if column in all_features_to_predict:
+            all_features_to_predict.remove(column)
+
+    updated_col_fixed = []
+    for col in columns_fixed:
+        if col in all_features_to_predict:
+            all_features_to_predict.remove(col)
+            updated_col_fixed.append(col)
+
+    updated_data_used_for_pred = []
+    for var in data_used_for_prediction:
+        if var in all_features:
+            updated_data_used_for_pred.append(var)
+
+    data_used_for_prediction = updated_data_used_for_pred
+
+    columns_fixed_ordered = []
+    for col in all_features:
+        if col in updated_col_fixed:
+            columns_fixed_ordered.append(col)
+    updated_col_fixed = columns_fixed_ordered
+
+    new_data_used = data_used_for_prediction.copy()
+    for col in data_used_for_prediction:
+        new_data_used.append(str(col) + "_1")
+        new_data_used.append(str(col) + "_2")
+        new_data_used.append(str(col) + "_3")
+        new_data_used.append(str(col) + "_4")
+        new_data_used.append(str(col) + "_5")
+        new_data_used.append(str(col) + "_6")
+    data_used_for_prediction = new_data_used
+    train_datas = stored_df[stored_df['location'] == country_predict][all_features_to_predict].reset_index(drop=True)
+    idx_data_to_pred = all_features_to_predict.index(data_to_predict)
+
+    new_model = linear_model.Lasso(alpha=2, normalize=True, max_iter=10000000)
+    train_datas_7 = generate_data(training_data=train_datas)
+    new_model.fit(train_datas_7[data_used_for_prediction].iloc[:-1], train_datas[all_features_to_predict].iloc[7:])
+    weights = get_weights(data_used_for_prediction, new_model.coef_[:][idx_data_to_pred])
+    non_zero_weights = []
+    for key in weights.keys():
+        if abs(weights[key]) > 0:
+            non_zero_weights.append(key)
+
+    all_predictions = []
+    all_dates = []
+    index_fixed = []
+    for i in range(len(data_used_for_prediction)):
+        if data_used_for_prediction[i] in updated_col_fixed:
+            index_fixed.append(i)
+
+    for i in range(90):  # 90 days for 3 months
+        if i == 0:
+            last_date = str(df['date'].iloc[-1])
+        else:
+            last_date = str(all_dates[-1])
+        last_datetime = datetime.strptime(last_date, '%Y-%m-%d')
+        new_datetime = last_datetime + timedelta(days=1)
+        new_date = str(new_datetime)[:10]
+        all_dates.append(new_date)
+
+        predicted_data = new_model.predict(train_datas_7[data_used_for_prediction].iloc[-1].to_numpy().reshape(1, -1))
+        all_predictions.append(predicted_data)
+        if len(index_fixed) > 0:
+            for idx in index_fixed:
+                predicted_data[0].insert(idx, train_datas_7[data_used_for_prediction[i]].iloc[-1])
+
+        new_row = []
+        for feature in all_features_to_predict:
+            feature_1 = str(feature) + "_1"
+            new_row.append(train_datas_7[feature_1].iloc[-1])
+        j = 0
+        for feature in all_features_to_predict:
+            feature_2 = str(feature) + "_2"
+            new_row.append(train_datas_7[feature_2].iloc[-1])
+            feature_3 = str(feature) + "_3"
+            new_row.append(train_datas_7[feature_3].iloc[-1])
+            feature_4 = str(feature) + "_4"
+            new_row.append(train_datas_7[feature_4].iloc[-1])
+            feature_5 = str(feature) + "_5"
+            new_row.append(train_datas_7[feature_5].iloc[-1])
+            feature_6 = str(feature) + "_6"
+            new_row.append(train_datas_7[feature_6].iloc[-1])
+            new_row.append(predicted_data[0][j])
+            j = j + 1
+
+        train_datas_7.loc[len(train_datas_7)] = new_row
+
+    x = df[df['location'] == country_predict]['date'].tolist()
+    y = train_datas[data_to_predict].tolist()
+    for i in range(len(all_dates)):
+        x.append(all_dates[i])
+        y.append(all_predictions[i][0][idx_data_to_pred])
+
+    ##################
+    # plot the predictions
+    ##################
+    prediction_df = pd.DataFrame({"date": x, "value": y})
+    fig = px.line(prediction_df, x="date", y="value")
+
+    fig.update_yaxes(title=str(data_to_predict + " predicted for next 3 months"))
 
     return fig
 
