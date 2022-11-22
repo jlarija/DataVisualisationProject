@@ -15,9 +15,9 @@ app = Dash(__name__)
 # Comment the next line and uncomment the 3 after to do your tests to avoid loading time, but the nans might fail your
 # tests
 df, variables_each_country = get_preprocessed_df()
-#url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
-#df = pd.read_csv(url)
-#variables_each_country = get_var_each_country()
+# url = 'https://covid.ourworldindata.org/data/owid-covid-data.csv'
+# df = pd.read_csv(url)
+# variables_each_country = get_var_each_country()
 
 temp_df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
 
@@ -25,11 +25,43 @@ all_col = list(df.columns)
 for col in columns_to_remove:
     all_col.remove(col)
 
+original_df = df
+constraint_added = []
+none_all_col = columns_fixed
+none_all_col.insert(0, 'None')
+
 variables_first_country = variables_each_country[df['location'][0]]
 
 months_list = get_list_months(df)
 months_df = get_month_df(df)
 app.layout = html.Div([
+    dcc.Store(data=df.to_json(date_format='iso', orient='split'), id='df'),
+    dcc.Store(data=months_df.to_json(date_format='iso', orient='split'), id='month-df'),
+    html.H1(
+        'Data filtering',
+        style={
+            'textAlign': 'left',
+            'color': 'black'
+        }
+    ),
+    html.Div([
+        html.Label("Activate filtering"),
+        dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
+        html.Br(),
+        html.Div([
+            dcc.Dropdown(none_all_col, none_all_col[0], id='variable-to-filter')
+        ], style={'width': '39%', 'display': 'inline-block'}),
+        html.Div([
+            dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter')
+        ], style={'width': '20%', 'display': 'inline-block'}),
+        html.Div([
+            dcc.Input(id='num-to-filter', type='number', value=0),
+        ], style={'width': '39%', 'display': 'inline-block'}),
+        html.Br(),
+        html.Button(id='filtering-button', n_clicks=0, children='Filter'),
+        html.Div(id='times-clicked')
+    ], style={'width': '48%', 'display': 'inline-block'}),
+    html.Br(),
     html.H1(
         'Evolution of multiple variables in time',
         style={
@@ -108,19 +140,60 @@ app.layout = html.Div([
         updatemode='mouseup',
         value=10,
         id='month-slider-dependence'
-    )
+    ),
 ])
+
+
+@app.callback(
+    Output('times-clicked', 'children'),
+    Output('filtering-button', 'n_clicks'),
+    Output('df', 'data'),
+    Output('month-df', 'data'),
+    Input('radio-filtering', 'value'),
+    Input('filtering-button', 'n_clicks'),
+    State('variable-to-filter', 'value'),
+    State('sign-to-filter', 'value'),
+    State('num-to-filter', 'value'),
+    State('df', 'data'),
+    State('month-df', 'data'),
+)
+def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, num_filter, df_stored, month_df_stored):
+    new_df = pd.read_json(df_stored, orient='split')
+    new_df['date'] = new_df['date'].dt.strftime('%Y-%m-%d')
+    new_month_df = pd.read_json(month_df_stored, orient='split')
+    new_month_df['date'] = new_month_df['date'].dt.strftime('%Y-%m-%d')
+    if radio_activate == 'Reset':
+        constraint_added.clear()
+        string = u'0 conditions added'
+        times_clicked = 0
+        new_df = original_df
+        new_month_df = get_month_df(original_df)
+
+    elif var_filter == 'None':
+        string = u'{} conditions added'.format(max([0, number_conditions_added - 1]))
+        times_clicked = max([0, number_conditions_added - 1])
+    else:
+        constraint_added.append([var_filter, sign_filter, num_filter])
+        new_df = apply_constraints(new_df, constraint_added)
+        new_month_df = get_month_df(new_df)
+        string = u'{} conditions added'.format(number_conditions_added)
+        times_clicked = number_conditions_added
+    return string, times_clicked, new_df.to_json(date_format='iso', orient='split'), new_month_df.to_json(
+        date_format='iso', orient='split')
 
 
 @app.callback(
     Output('country-continent-choice', 'options'),
     Output('country-continent-choice', 'value'),
-    Input('country-continent-radio', 'value'))
-def choose_country_or_continent(country_continent):
+    Input('country-continent-radio', 'value'),
+    Input('df', 'data'))
+def choose_country_or_continent(country_continent, data):
+    used_df = pd.read_json(data, orient='split')
+    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
     if country_continent == 'Country':
-        to_show = df['location'].unique()
+        to_show = used_df['location'].unique()
     else:
-        to_show = df['continent'].dropna().unique()
+        to_show = used_df['continent'].dropna().unique()
     return to_show, to_show[0]
 
 
@@ -128,12 +201,15 @@ def choose_country_or_continent(country_continent):
     Output('y-axis', 'options'),
     Output('y-axis', 'value'),
     Input('country-continent-radio', 'value'),
-    Input('country-continent-choice', 'value'))
-def y_axis_based_on_location(country_cont_radio, country_cont_choice):
+    Input('country-continent-choice', 'value'),
+    Input('df', 'data'))
+def y_axis_based_on_location(country_cont_radio, country_cont_choice, data):
+    used_df = pd.read_json(data, orient='split')
+    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
     if country_cont_radio == 'Country':
         variables_to_show = variables_each_country[country_cont_choice]
     else:
-        variables_to_show = df.columns.to_list()
+        variables_to_show = used_df.columns.to_list()
     for col in columns_to_remove:
         if col in variables_to_show:
             variables_to_show.remove(col)
@@ -144,12 +220,15 @@ def y_axis_based_on_location(country_cont_radio, country_cont_choice):
     Output('variables-graph', 'figure'),
     Input('y-axis', 'value'),
     Input('country-continent-choice', 'value'),
-    Input('country-continent-radio', 'value'))
-def update_graph_multi_var(variables_chosen, country_cont_choice, country_cont_radio):
+    Input('country-continent-radio', 'value'),
+    Input('df', 'data'))
+def update_graph_multi_var(variables_chosen, country_cont_choice, country_cont_radio, data):
+    stored_df = pd.read_json(data, orient='split')
+    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
     if country_cont_radio == 'Country':
-        used_df = df[df['location'] == country_cont_choice]
+        used_df = stored_df[stored_df['location'] == country_cont_choice]
     else:
-        continent_df = df[df['continent'] == country_cont_choice]
+        continent_df = stored_df[stored_df['continent'] == country_cont_choice]
         used_df = continent_df.groupby(['date'], as_index=False).sum()
 
     fig = go.Figure()
@@ -193,6 +272,18 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, country_cont_r
 
 
 @app.callback(
+    Output('country-choice', 'options'),
+    Output('country-choice', 'value'),
+    Input('df', 'data'))
+def change_available_countries(data):
+    used_df = pd.read_json(data, orient='split')
+    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
+
+    all_countries = used_df['location']
+    return all_countries, all_countries[0]
+
+
+@app.callback(
     Output('var-choice', 'options'),
     Output('var-choice', 'value'),
     Input('country-choice', 'value'))
@@ -211,8 +302,11 @@ def var_for_country(country_choice):
     Output('corr-table', 'data'),
     Output('corr-table', 'columns'),
     Input('country-choice', 'value'),
-    Input('var-choice', 'value'))
-def update_table_corr(country_choice, var_choice):
+    Input('var-choice', 'value'),
+    Input('df', 'data'))
+def update_table_corr(country_choice, var_choice, data):
+    stored_df = pd.read_json(data, orient='split')
+    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
     all_features = variables_each_country[country_choice].copy()
 
     for column in columns_to_remove:
@@ -223,7 +317,7 @@ def update_table_corr(country_choice, var_choice):
         if column in all_features:
             all_features.remove(column)
 
-    country_df = df[df['location'] == country_choice][all_features]
+    country_df = stored_df[stored_df['location'] == country_choice][all_features]
     corr_mat = country_df.corr(method='pearson')
 
     pos_corr = corr_mat.sort_values(by=[var_choice], ascending=False, inplace=False)[var_choice]
@@ -268,21 +362,24 @@ def update_table_corr(country_choice, var_choice):
     Input('country-choice', 'value'),
     Input('var-choice', 'value'),
     Input('corr-table', 'active_cell'),
-    Input('corr-table', 'data'))
-def update_graphs(country_choice, var_choice, active_cell, data):
+    Input('corr-table', 'data'),
+    Input('df', 'data'))
+def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
+    stored_df = pd.read_json(data_stored, orient='split')
+    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
     if active_cell:
         cell_clicked = active_cell['row']
         var_clicked = data[cell_clicked]['variables']
     else:
         var_clicked = var_choice
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-    all_dates = df[df['location'] == country_choice]['date']
-    data_1 = df[df['location'] == country_choice][var_choice].to_list()
+    all_dates = stored_df[stored_df['location'] == country_choice]['date']
+    data_1 = stored_df[stored_df['location'] == country_choice][var_choice].to_list()
     fig.add_trace(
         go.Scatter(x=all_dates, y=data_1, name=var_choice),
         secondary_y=False,
     )
-    data_2 = df[df['location'] == country_choice][var_clicked].to_list()
+    data_2 = stored_df[stored_df['location'] == country_choice][var_clicked].to_list()
     fig.add_trace(
         go.Scatter(x=all_dates, y=data_2, name=var_clicked),
         secondary_y=True,
@@ -307,16 +404,19 @@ def update_graphs(country_choice, var_choice, active_cell, data):
     Output('total-dependence-graph', 'figure'),
     Input('x-axis-dependence', 'value'),
     Input('y-axis-dependence', 'value'),
-    Input('month-slider-dependence', 'value'))
-def update_dependence_graphs(x_axis_var, y_axis_var, month):
+    Input('month-slider-dependence', 'value'),
+    Input('month-df', 'data'))
+def update_dependence_graphs(x_axis_var, y_axis_var, month, month_data):
+    stored_df = pd.read_json(month_data, orient='split')
+    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
     month = months_list[month]
-    all_countries = months_df['location'].unique()
+    all_countries = stored_df['location'].unique()
     x_values = []
     y_values = []
     all_continents = []
     pops = []
     for country in all_countries:
-        country_df = months_df[months_df['location'] == country]
+        country_df = stored_df[stored_df['location'] == country]
         if x_axis_var in variables_each_country[country]:
             country_df_x = country_df[['month', x_axis_var]]
             if month in country_df_x['month'].unique():
