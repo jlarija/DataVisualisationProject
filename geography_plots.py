@@ -1,67 +1,80 @@
 from utils import *
 import json
 import pickle
-
-# with open('world.geojson') as file:
-#     world_map = json.load(file)
-
-# def world_names(world_df):
-#     names = list()
-#     for i in range(len(world_df['features'])):
-#         names.append(world_df['features'][i]['properties']['NAME_LONG'])
-
-#     with open('world_list.pickle', 'wb') as file1:
-#         pickle.dump(names,file1)
-
-#     return names
-
-# world_names1 = world_names(world_map)
-
-#df, variables_each_country = get_preprocessed_df()
-
-def smooth_df(df):
-    covid_df = df.loc[df['date'] == '2022-11-13', ('location','total_cases')]
-
-    with open('covid_list.pickle', 'wb') as file:
-        pickle.dump(covid_df,file)
-
-    return covid_df
+import plotly.express as px
+from dash import Dash, dcc, html, Input, Output
+import warnings
+warnings.filterwarnings("ignore")
 
 with open('world_list.pickle', 'rb') as file1:
     world_names = pickle.load(file1)
 
-with open('covid_list.pickle', 'rb') as file:
-    covid_df = pickle.load(file)
+df, variables_each_country = get_preprocessed_df()
+
+def smooth_df(df):
+    covid_df = df.loc[df['date'] == '2022-11-02', ('location','total_cases')]
+    covid_df = covid_df.dropna().reset_index(drop=True)
+    with open('covid_final.pickle', 'wb') as file:
+        pickle.dump(covid_df,file)
+
+    return covid_df
+
+smoot = smooth_df(df)
 
 def remove_countries_notinworldmap(df):
 
-    lines_dropped = ['Tokelau', 'Sao Tome and Principe','Monaco','World', 'Macau', 'Pitcairn',\
+    lines_dropped = ['Tokelau', 'Sao Tome and Principe','Monaco','World', 'Macao', 'Pitcairn',\
          'Timor', 'Laos', 'Saint Pierre and Miquelon','Liechtenstein', 'Monaco',\
              'Northern Mariana Islands',  'Micronesia (country)', 'Cook Islands', \
             'Anguilla', 'Saint Kitts and Nevis', 'Kiribati', 'Marshall Islands', \
             'Cayman Islands', 'Turks and Caicos Islands', 'Maldives', 'Guam','United States Virgin Islands'\
             'Brunei', 'Seychelles', 'Palau', 'Eswatini', 'Guernsey', 'Wallis and Futuna',\
             'Tonga', 'Bermuda', 'Montserrat',  'Niue', 'Saint Vincent and the Grenadines',\
-             'Aruba', 'Grenada', 'Malta', 'Tuvalu', 'Nauru','Samoa', 'Bonaire Sint Eustatius and Saba', \
+             'Aruba','Africa', 'Grenada','Jersey', 'Malta', 'Tuvalu', 'Nauru','Samoa', 'Bonaire Sint Eustatius and Saba', \
                 'Lower middle income', 'International', 'Upper middle income', 'European union', 'High income' ,\
-            'North america', 'Oceania','Gibraltar','South america' , 'Micronesia', 'Curacau', 'Sint Maarten']
+            'North america', 'Oceania','Gibraltar','South america' ,'England',  'Micronesia', 'Curacau', 'Sint Maarten', \
+            'Scotland', 'Northern Ireland', 'Wales','British Virgin Islands', 'Brunei', 'Saint Helena', 'Low income', 'North America',\
+        'Curacao', 'European Union', 'Asia', 'South America', 'Europe']
 
     for country in lines_dropped:
-        df.drop(df[df['location'] == str(country)].index, inplace =True)
+        df = df[df['location'].str.contains(country) == False]
 
-    df['location'].replace({'Democratic Republic of Congo': 'Democratic Republic of the Congo','Russia': 'Russian Federation', 'Czechia' : 'Czech Republic', 'Vatican': 'Vatican City','North Korea': 'Dem. Rep. Korea', 'South Korea': 'Republic of Korea', 'Cote d’Ivoire':'Côte d’Ivoire','Congo': ' Republic of Congo', 'Gambia':'The Gambia', 'North Macedonia': 'Macedonia', \
-        'England': 'United Kingdom', 'Scotland': 'United Kingdom', 'Wales': 'United Kingdom', 'Northern Ireland': 'United Kingdom', 'Wales': 'United Kingdom'})
-    # UK is annoyingly split
-    df.groupby(['location']).sum()
-    return df['location'].unique()
+    df = df.replace(to_replace=['Democratic Republic of Congo','Russia', 'Czechia', 'Vatican', 'North Korea', 'South Korea',"Cote d'Ivoire", 'Congo','Gambia','North Macedonia'],\
+        value = ['Democratic Republic of the Congo', 'Russian Federation', 'Czech Republic', 'Vatican City', 'Dem. Rep. Korea', 'Republic of Korea',"Côte d'Ivoire", 'Republic of Congo', \
+            'The Gambia', 'Macedonia'] )
+            
+    return df
 
-final_df = remove_countries_notinworldmap(covid_df)
-print(final_df)
-# diff_list = list(set(covid_names) - set(world_names))
-# print(diff_list)
-# print()
-# print()
-# print(covid_names)
-# print()
-# print()
-# print(world_names)
+covid = remove_countries_notinworldmap(smoot)
+
+with open('world.geojson') as file:
+     world_map = json.load(file)
+
+covid_countries = covid['location'].unique()
+
+diff_list2 = list(set(world_names) - set(covid_countries))
+
+countries_to_delete = diff_list2
+
+world_map2 = world_map
+
+for i in range(len(world_map2['features'])):
+        #print(i)
+        current_country = world_map2['features'][i]['properties']['NAME_LONG'] 
+
+        if current_country in countries_to_delete:
+               world_map2['features'][i] = []
+
+
+# now take a look at the resulting
+world_map2['features'] = [lst for lst in world_map2['features'] if lst != []]
+
+names = []
+for i in range(len(world_map2['features'])):
+        names.append(world_map2['features'][i]['properties']['NAME_LONG'])
+
+
+app = Dash(__name__)
+
+
+
