@@ -126,11 +126,15 @@ app.layout = html.Div([
         html.Div([
             html.Label('x-axis'),
             dcc.Dropdown(all_col, all_col[0], id='x-axis-dependence')
-        ], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
+        ], style={'width': '30%', 'float': 'left', 'display': 'inline-block'}),
         html.Div([
             html.Label('y-axis'),
             dcc.Dropdown(all_col, all_col[1], id='y-axis-dependence'),
-        ], style={'width': '48%', 'display': 'inline-block'}),
+        ], style={'width': '30%', 'display': 'inline-block'}),
+        html.Div([
+            html.Label('Size of the dots'),
+            dcc.Dropdown(columns_fixed, columns_fixed[0], id='size-dot-dependence'),
+        ], style={'width': '30%', 'display': 'inline-block'}),
     ], style={'margin-bottom': '0.5cm'}),
     dcc.Graph(id='total-dependence-graph'),
     dcc.Slider(
@@ -432,8 +436,9 @@ def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
     Input('x-axis-dependence', 'value'),
     Input('y-axis-dependence', 'value'),
     Input('month-slider-dependence', 'value'),
+    Input('size-dot-dependence', 'value'),
     Input('month-df', 'data'))
-def update_dependence_graphs(x_axis_var, y_axis_var, month, month_data):
+def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data):
     stored_df = pd.read_json(month_data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
     month = months_list[month]
@@ -441,7 +446,7 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, month_data):
     x_values = []
     y_values = []
     all_continents = []
-    pops = []
+    size_dot_values = []
     for country in all_countries:
         country_df = stored_df[stored_df['location'] == country]
         if x_axis_var in variables_each_country[country]:
@@ -463,13 +468,17 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, month_data):
             y_values.append(0)
 
         all_continents.append(country_df['continent'].iloc[0])
-        pops.append(country_df['population'].iloc[0])
+        val = country_df[size_dot].iloc[0]
+        if not math.isnan(val) and val != 0:
+            size_dot_values.append(val)
+        else:
+            size_dot_values.append(1)
     new_df = pd.DataFrame({'country': all_countries, 'continent': all_continents, x_axis_var: x_values,
-                           y_axis_var: y_values, 'pop': pops})
+                           y_axis_var: y_values, size_dot: size_dot_values})
 
     fig = px.scatter(new_df, x=x_axis_var, y=y_axis_var,
-                     size="pop", color="continent", hover_name="country",
-                     size_max=55)
+                     size=size_dot, color="continent", hover_name="country",
+                     size_max=18)
 
     return fig
 
