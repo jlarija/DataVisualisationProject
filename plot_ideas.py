@@ -268,6 +268,5 @@ def update_graphs(country_choice, var_choice, active_cell, data):
     print("min : ", min(data_2), "; max : ", max(data_2))
     return fig, fig2
 
-
 if __name__ == "__main__":
     app.run_server(debug=True)
