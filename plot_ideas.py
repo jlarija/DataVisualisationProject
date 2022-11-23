@@ -414,8 +414,6 @@ def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
                        yaxis={'autorange': False, 'range': [min(data_2), max(data_2)]})
     return fig, fig2
 
-<<<<<<< HEAD
-=======
 
 #######################
 # Dependencies
@@ -635,6 +633,5 @@ def update_graph7(country_predict, data_to_predict, data):
     return fig
 
 
->>>>>>> 50918ec31dc130f90e9b9dfe1d62253936efe97c
 if __name__ == "__main__":
     app.run_server(debug=True)
