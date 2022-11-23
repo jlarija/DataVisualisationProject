@@ -42,7 +42,6 @@ for countr in df['location'].unique():
     if countr not in list(trust_df['location']):
         trust_df.loc[len(trust_df)] = [countr, float("nan")]
 
-print(list(trust_df['location']))
 col_fixed_new_df = columns_fixed.copy()
 col_fixed_new_df.insert(0, 'trust_in_gov')
 
@@ -456,7 +455,6 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data
 
         all_continents.append(country_df['continent'].iloc[0])
         if size_dot == 'trust_in_gov':
-            print(trust_df[trust_df['location'] == country]['trust_in_gov'])
             val = trust_df[trust_df['location'] == country]['trust_in_gov'].item()
         else:
             val = country_df[size_dot].iloc[0]
