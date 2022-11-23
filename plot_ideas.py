@@ -34,6 +34,17 @@ variables_first_country = variables_each_country[df['location'][0]]
 
 months_list = get_list_months(df)
 months_df = get_month_df(df)
+
+trust_df = pd.read_csv('share-who-trust-government.csv')
+trust_df = trust_df.drop(['Code', 'Year'], axis=1)
+trust_df.columns = ['location', 'trust_in_gov']
+for countr in df['location'].unique():
+    if countr not in trust_df['location']:
+        trust_df.loc[len(trust_df)] = [countr, float("nan")]
+
+col_fixed_new_df = columns_fixed.copy()
+col_fixed_new_df.insert(0, 'trust_in_gov')
+
 app.layout = html.Div([
     dcc.Store(data=df.to_json(date_format='iso', orient='split'), id='df'),
     dcc.Store(data=months_df.to_json(date_format='iso', orient='split'), id='month-df'),
@@ -71,7 +82,6 @@ app.layout = html.Div([
     ),
     html.Div([
         html.Label("Country or continent"),
-        dcc.RadioItems(['Country', 'Continent'], 'Country', id='country-continent-radio'),
         dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
                      id='country-continent-choice'),
 
@@ -92,7 +102,7 @@ app.layout = html.Div([
     ),
     html.Div([
         html.Div([
-            html.Label('Country'),
+            html.Label('Country or continent'),
             dcc.Dropdown([country for country in df['location'].unique()], df['location'][0], id='country-choice')
         ], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
         html.Div([
@@ -155,7 +165,7 @@ app.layout = html.Div([
         }
     ),
     html.Div([
-        html.Label("Country"),
+        html.Label("Country or continent"),
         dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
                      id='country-predictions'),
 
@@ -210,33 +220,14 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
 #######################
 # Multi variables
 @app.callback(
-    Output('country-continent-choice', 'options'),
-    Output('country-continent-choice', 'value'),
-    Input('country-continent-radio', 'value'),
-    Input('df', 'data'))
-def choose_country_or_continent(country_continent, data):
-    used_df = pd.read_json(data, orient='split')
-    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
-    if country_continent == 'Country':
-        to_show = used_df['location'].unique()
-    else:
-        to_show = used_df['continent'].dropna().unique()
-    return to_show, to_show[0]
-
-
-@app.callback(
     Output('y-axis', 'options'),
     Output('y-axis', 'value'),
-    Input('country-continent-radio', 'value'),
     Input('country-continent-choice', 'value'),
     Input('df', 'data'))
-def y_axis_based_on_location(country_cont_radio, country_cont_choice, data):
+def y_axis_based_on_location(country_cont_choice, data):
     used_df = pd.read_json(data, orient='split')
     used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
-    if country_cont_radio == 'Country':
-        variables_to_show = variables_each_country[country_cont_choice]
-    else:
-        variables_to_show = used_df.columns.to_list()
+    variables_to_show = variables_each_country[country_cont_choice]
     for col in columns_to_remove:
         if col in variables_to_show:
             variables_to_show.remove(col)
@@ -247,16 +238,11 @@ def y_axis_based_on_location(country_cont_radio, country_cont_choice, data):
     Output('variables-graph', 'figure'),
     Input('y-axis', 'value'),
     Input('country-continent-choice', 'value'),
-    Input('country-continent-radio', 'value'),
     Input('df', 'data'))
-def update_graph_multi_var(variables_chosen, country_cont_choice, country_cont_radio, data):
+def update_graph_multi_var(variables_chosen, country_cont_choice, data):
     stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    if country_cont_radio == 'Country':
-        used_df = stored_df[stored_df['location'] == country_cont_choice]
-    else:
-        continent_df = stored_df[stored_df['continent'] == country_cont_choice]
-        used_df = continent_df.groupby(['date'], as_index=False).sum()
+    used_df = stored_df[stored_df['location'] == country_cont_choice]
 
     fig = go.Figure()
 
@@ -468,7 +454,10 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data
             y_values.append(0)
 
         all_continents.append(country_df['continent'].iloc[0])
-        val = country_df[size_dot].iloc[0]
+        if size_dot == 'trust_in_gov':
+            val = trust_df[trust_df['location'] == country]['trust_in_gov'].item()
+        else:
+            val = country_df[size_dot].iloc[0]
         if not math.isnan(val) and val != 0:
             size_dot_values.append(val)
         else:
