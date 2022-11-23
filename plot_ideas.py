@@ -27,7 +27,7 @@ for col in columns_to_remove:
 
 original_df = df
 constraint_added = []
-none_all_col = columns_fixed
+none_all_col = columns_fixed.copy()
 none_all_col.insert(0, 'None')
 
 variables_first_country = variables_each_country[df['location'][0]]
@@ -39,9 +39,10 @@ trust_df = pd.read_csv('share-who-trust-government.csv')
 trust_df = trust_df.drop(['Code', 'Year'], axis=1)
 trust_df.columns = ['location', 'trust_in_gov']
 for countr in df['location'].unique():
-    if countr not in trust_df['location']:
+    if countr not in list(trust_df['location']):
         trust_df.loc[len(trust_df)] = [countr, float("nan")]
 
+print(list(trust_df['location']))
 col_fixed_new_df = columns_fixed.copy()
 col_fixed_new_df.insert(0, 'trust_in_gov')
 
@@ -143,7 +144,7 @@ app.layout = html.Div([
         ], style={'width': '30%', 'display': 'inline-block'}),
         html.Div([
             html.Label('Size of the dots'),
-            dcc.Dropdown(columns_fixed, columns_fixed[0], id='size-dot-dependence'),
+            dcc.Dropdown(col_fixed_new_df, col_fixed_new_df[0], id='size-dot-dependence'),
         ], style={'width': '30%', 'display': 'inline-block'}),
     ], style={'margin-bottom': '0.5cm'}),
     dcc.Graph(id='total-dependence-graph'),
@@ -455,6 +456,7 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data
 
         all_continents.append(country_df['continent'].iloc[0])
         if size_dot == 'trust_in_gov':
+            print(trust_df[trust_df['location'] == country]['trust_in_gov'])
             val = trust_df[trust_df['location'] == country]['trust_in_gov'].item()
         else:
             val = country_df[size_dot].iloc[0]
