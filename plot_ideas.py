@@ -632,12 +632,6 @@ def update_graph7(country_predict, data_to_predict, data):
 
     return fig
 
-def run_server(self,
-               port=8050,
-               debug=True,
-               threaded=True,
-               **flask_run_options):
-    self.server.run(port=port, debug=debug, **flask_run_options)
 
 if __name__ == "__main__":
-    app.run_server(debug=True, port=8055)
+    app.run_server(debug=True)
