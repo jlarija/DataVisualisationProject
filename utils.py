@@ -3919,6 +3919,7 @@ def get_preprocessed_df(var_each_country=None):
 
     return new_df, variables_each_country
 
+
 def get_list_months(df):
     unique_dates = df['date'].unique()
     str_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
