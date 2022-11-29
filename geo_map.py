@@ -108,8 +108,8 @@ def display_chloropleth(var):
     df = covid_df
     geojson = wrldmap
     figure = px.choropleth(df, geojson=geojson, color = var, locations ='location',\
-     featureidkey='properties.NAME_LONG', animation_frame = 'month', height=600,width=1000)
+     featureidkey='properties.NAME_LONG', animation_frame = 'month', height=600,width=1000,color_continuous_scale='Brwnyl')
     return figure
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port = 8019)
+    app.run_server(debug=True, port = 8020)
