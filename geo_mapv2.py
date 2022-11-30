@@ -4,7 +4,9 @@ import json
 import pickle
 import plotly.graph_objects as go
 import pandas as pd
-from plot_ideas_geo import *
+import numpy as np
+import plotly.express as px
+#from dashboard import *
 
 # DATA 
 data_not_saved = False
@@ -17,23 +19,52 @@ with open('df.pickle', 'rb') as dffile:
         df,variables_each_country = pickle.load(dffile)
 
 
-# PLOTS BACK-END
-def choropleth_map():
-    df = get_month_df(df) # Split months cause slider
-    df = df.groupby(['iso_code','month'], sort=False).mean().reset_index()
+months_list = get_list_months(df)
+slider_months = [month[:3] + month[5:] for month in months_list]
+months_df = get_month_df(df)
 
-    # PLOTLY PART
-    colorscale = ['#ffcdbf','#dea394','#bc7b6c','#9b5447','#792e25', '#570000']
+app = Dash(__name__)
 
-    fig = go.Figure(data = go.Choropleth(
-        locations = df['iso_code'],
-    z = df['total_cases_per_million'], 
-    text = df['iso_code'], 
-    colorscale=colorscale,
-    colorbar_title = 'Total Cases Per Million'
-    ))
+df = get_month_df(df) # Split months cause slider
+df = df.groupby(['iso_code','month'], sort=False).mean().reset_index()
+df = df[df['iso_code'].str.contains('OWID')==False]
+print(df.columns)
+app.layout = html.Div([html.H1('A look at the world:'),
+        dcc.Dropdown(df.columns, 'total_cases', id='chorplethdropdown'),
+        dcc.Graph(id = 'Choropleth Map'),
+        dcc.Slider(
+            0,
+            len(months_list) - 1,
+            marks={i: str(slider_months[i]) for i in range(len(slider_months))},
+            updatemode='mouseup',
+            value=0,
+            id='monthchoroplethmap'
+        )
+])
+
+@app.callback(
+    Output('Choropleth Map', 'figure'),
+    Input('chorplethdropdown', 'value'),
+    Input('monthchoroplethmap', 'value') # gives a numerical value
+)
+def choropleth_map(choroplethdropdown, monthchoroplethmap):
+    global df
+    
+    colorscale = ['#ffd7cd','#e3ada0','#c68475', '#a95c4c','#893427', '#690000']
+
+    current_month = months_list[monthchoroplethmap]
+    my_df = df[df['month'] == current_month]
+    min_color = np.max(my_df[str(choroplethdropdown)])
+    max_color = np.min(my_df[str(choroplethdropdown)])
+
+    fig = px.choropleth(my_df, locations = 'iso_code', color = str(choroplethdropdown),
+    color_continuous_scale = colorscale,hover_name="iso_code", height = 600, width = 1000,
+    range_color = (min_color,max_color))
+
     background_color = '#F5F2E8'
-    fig.update_layout(title_text='COVID',
+
+    fig.update_layout(font_family = 'Balto',font_color = '#000000',
+    font_size = 18,
         geo=dict(
             showframe=False,
             showcoastlines=False,
@@ -41,7 +72,8 @@ def choropleth_map():
             bgcolor= background_color,
             lakecolor= background_color, 
             landcolor='rgba(51,17,0,0.2)',
-            subunitcolor='grey'
+            subunitcolor='grey',
+            
         ))
 
     # Delete antartica
@@ -56,5 +88,6 @@ def choropleth_map():
     return fig
 
 
-# if __name__ == '__main__':
-#     app.run_server(debug = True)
+
+if __name__ == '__main__':
+     app.run_server(debug = True)
