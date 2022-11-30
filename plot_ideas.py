@@ -209,6 +209,7 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
         times_clicked = max([0, number_conditions_added - 1])
     else:
         constraint_added.append([var_filter, sign_filter, num_filter])
+        print(constraint_added)
         new_df = apply_constraints(new_df, constraint_added)
         new_month_df = get_month_df(new_df)
         string = u'{} conditions added'.format(number_conditions_added)
@@ -220,13 +221,21 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
 #######################
 # Multi variables
 @app.callback(
+    Output('country-continent-choice', 'options'),
+    Output('country-continent-choice', 'value'),
+    Input('df', 'data'))
+def change_available_countries_mult(data):
+    used_df = pd.read_json(data, orient='split')
+
+    all_countries = used_df['location'].unique()
+    return all_countries, all_countries[0]
+
+
+@app.callback(
     Output('y-axis', 'options'),
     Output('y-axis', 'value'),
-    Input('country-continent-choice', 'value'),
-    Input('df', 'data'))
-def y_axis_based_on_location(country_cont_choice, data):
-    used_df = pd.read_json(data, orient='split')
-    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
+    Input('country-continent-choice', 'value'))
+def y_axis_based_on_location(country_cont_choice):
     variables_to_show = variables_each_country[country_cont_choice]
     for col in columns_to_remove:
         if col in variables_to_show:
@@ -290,11 +299,10 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
     Output('country-choice', 'options'),
     Output('country-choice', 'value'),
     Input('df', 'data'))
-def change_available_countries(data):
+def change_available_countries_corr(data):
     used_df = pd.read_json(data, orient='split')
-    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
 
-    all_countries = used_df['location']
+    all_countries = used_df['location'].unique()
     return all_countries, all_countries[0]
 
 
@@ -478,11 +486,10 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data
     Output('country-predictions', 'options'),
     Output('country-predictions', 'value'),
     Input('df', 'data'))
-def change_available_countries(data):
+def change_available_countries_pred(data):
     used_df = pd.read_json(data, orient='split')
-    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
 
-    all_countries = used_df['location']
+    all_countries = used_df['location'].unique()
     return all_countries, all_countries[0]
 
 
