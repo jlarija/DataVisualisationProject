@@ -209,7 +209,6 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
         times_clicked = max([0, number_conditions_added - 1])
     else:
         constraint_added.append([var_filter, sign_filter, num_filter])
-        print(constraint_added)
         new_df = apply_constraints(new_df, constraint_added)
         new_month_df = get_month_df(new_df)
         string = u'{} conditions added'.format(number_conditions_added)
