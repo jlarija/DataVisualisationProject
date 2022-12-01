@@ -1,5 +1,7 @@
 import math
 import pandas as pd
+import pycountry
+
 
 columns_to_remove = ['iso_code', 'continent', 'location', 'date', 'tests_units']
 
@@ -4029,3 +4031,42 @@ def generate_data(training_data):
         new_df[str(col) + "_6"] = new_col_6
 
     return new_df
+
+def get_fifa_data(df):
+
+    fifa_ranking = pd.read_csv('fifa_ranking-2022-10-06.csv')
+    fifa_ranking = fifa_ranking.drop(columns = ['total_points', 'previous_points', 'rank_change', 'confederation', 'country_full']).reset_index()
+
+    # get the 2020 ranking
+    fifa_ranking = fifa_ranking[fifa_ranking['rank_date'] == '2020-04-09']
+    fifa_ranking = fifa_ranking.sort_values(by='rank').reset_index()
+    fifa_ranking = fifa_ranking.drop(columns = ['level_0', 'index'])
+
+    # sort the original dataframe with covid data
+    df_fifa = df[df['iso_code'].str.contains('OWID')==False]
+    df_fifa = df_fifa[df_fifa['date'] == '2020-04-09']
+    df_fifa.rename(columns ={'iso_code':'country_abrv'}, inplace=True)
+    df_fifa = df_fifa[['country_abrv', 'total_cases']]
+
+    # match the dataframes
+    final_rank = df_fifa.merge(fifa_ranking, how='left', on='country_abrv')
+    final_rank = final_rank.dropna()
+    final_rank = final_rank.rename(columns = {'rank':'fifa_rank'})
+    # create a ranking of the covid cases
+    final_rank['total_cases_rank'] = final_rank['total_cases'].rank(method = 'max', ascending = False)
+
+    final_df = final_rank.sort_values(by='fifa_rank')
+    iso_2 = []
+
+    for element in final_df['country_abrv']:
+        country_data = pycountry.countries.get(alpha_3 = str(element))
+        iso_2.append(country_data.alpha_2)
+
+    alpha2 = pd.Series(iso_2)
+    # final_df['iso_2'] = alpha2
+    final_df = final_df.reset_index()
+    final_df['iso_2'] = alpha2
+    final_df = final_df.drop(columns = ['index'])
+
+    return final_df
+

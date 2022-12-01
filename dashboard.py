@@ -26,6 +26,51 @@ with open('df.pickle', 'rb') as dffile:
 
 temp_df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
 
+fifa_df = get_fifa_data(df)
+
+def fifa_plot(df):
+
+    fig = px.scatter(df, x = 'total_cases_rank',  y = 'fifa_rank',
+    hover_name = 'country_abrv',
+    hover_data =['fifa_rank', 'total_cases_rank']
+    )
+
+    fig.update_traces(marker_color = '#000000')
+
+    min_dim = df[['fifa_rank', 'total_cases_rank']].max().idxmax()
+    maxi = df[min_dim].max()
+    for i, row in df.iterrows():
+        country_iso = row['iso_2']
+        fig.add_layout_image(
+            dict(
+                source=f"https://raw.githubusercontent.com/matahombres/CSS-Country-Flags-Rounded/master/flags/{country_iso}.png",
+                xref="x",
+                yref="y",
+                xanchor="center",
+                yanchor="middle",
+                x=row["total_cases_rank"],
+                y=row["fifa_rank"],
+                sizex=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025 + maxi * 0.03,
+                sizey=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025+ maxi * 0.03,
+                sizing="contain",
+                opacity=0.95,
+                layer="above"
+            )
+        ) 
+
+
+    fig.update_layout(
+        title_text="COVID cases on 09-04-2020 vs Fifa World Ranking for the same date",
+        height=600, width=1000, plot_bgcolor="#FFFFFF")
+
+
+    # Set y-axes titles
+    fig.update_yaxes(title_text="<b>Fifa Rank</b>", showgrid = True, 
+    griddash = 'dash', gridcolor = '#D4D4D4')
+    fig.update_xaxes(title_text="<b>COVID Cases Rank</b>", showgrid = True, 
+    griddash = 'dash', gridcolor = '#D4D4D4')
+
+    return fig
 
 all_col = list(df.columns)
 for col in columns_to_remove:
@@ -55,6 +100,12 @@ col_fixed_new_df.insert(0, 'trust_in_gov')
 app.layout = html.Div([
     dcc.Store(data=df.to_json(date_format='iso', orient='split'), id='df'),
     dcc.Store(data=months_df.to_json(date_format='iso', orient='split'), id='month-df'),
+    html.H1('COVID 19: The Data',
+    style = {
+        'textAlign': 'center',
+        'color': 'black',
+        'font_size': '36px'
+    }),
     html.H1(
         'Data filtering',
         style={
@@ -194,6 +245,15 @@ app.layout = html.Div([
         dcc.Dropdown(variables_first_country, variables_first_country[0], id='var-to-pred')
     ]),
     dcc.Graph(id='predictions-graph'),
+    html.Br(),
+    html.H1('A Story of COVID Through Unconventional Data',
+        style={
+            'textAlign': 'left',
+            'color': 'black'
+        }
+    ),
+    html.H3('The beginning of COVID: did football fans contribute to spreading COVID?'),
+    dcc.Graph(figure = fifa_plot(fifa_df))
 ])
 
 
@@ -677,7 +737,7 @@ def choropleth_map(choroplethdropdown, monthchoroplethmap):
     background_color = '#F5F2E8'
 
     fig.update_layout(font_family = 'Balto',font_color = '#000000',
-    font_size = 18,
+    font_size = 18, plot_bgcolor=background_color,
         geo=dict(
             showframe=False,
             showcoastlines=False,
