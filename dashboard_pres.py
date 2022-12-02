@@ -132,9 +132,7 @@ app.layout = html.Div([
     ], style={'width': '48%', 'display': 'inline-block'}),
     html.Br(),
     html.Div([html.H1('A look at the world:'),
-        html.Div([
-        dcc.Dropdown(df.columns, 'total_cases', id='chorplethdropdown')], 
-        style={'width': '39%', 'display': 'inline-block'}),
+        dcc.Dropdown(df.columns, 'total_cases', id='chorplethdropdown'),
         dcc.Graph(id = 'Choropleth Map'),
         dcc.Slider(
             0,
@@ -302,13 +300,20 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
 #######################
 # Multi variables
 @app.callback(
+    Output('country-continent-choice', 'options'),
+    Output('country-continent-choice', 'value'),
+    Input('df', 'data'))
+def change_available_countries_mult(data):
+    used_df = pd.read_json(data, orient='split')
+
+    all_countries = used_df['location'].unique()
+    return all_countries, all_countries[0]
+
+@app.callback(
     Output('y-axis', 'options'),
     Output('y-axis', 'value'),
-    Input('country-continent-choice', 'value'),
-    Input('df', 'data'))
-def y_axis_based_on_location(country_cont_choice, data):
-    used_df = pd.read_json(data, orient='split')
-    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
+    Input('country-continent-choice', 'value'))
+def y_axis_based_on_location(country_cont_choice):
     variables_to_show = variables_each_country[country_cont_choice]
     for col in columns_to_remove:
         if col in variables_to_show:
@@ -372,11 +377,10 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
     Output('country-choice', 'options'),
     Output('country-choice', 'value'),
     Input('df', 'data'))
-def change_available_countries(data):
+def change_available_countries_corr(data):
     used_df = pd.read_json(data, orient='split')
-    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
 
-    all_countries = used_df['location']
+    all_countries = used_df['location'].unique()
     return all_countries, all_countries[0]
 
 
@@ -562,9 +566,8 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data
     Input('df', 'data'))
 def change_available_countries(data):
     used_df = pd.read_json(data, orient='split')
-    used_df['date'] = used_df['date'].dt.strftime('%Y-%m-%d')
 
-    all_countries = used_df['location']
+    all_countries = used_df['location'].unique()
     return all_countries, all_countries[0]
 
 
@@ -717,12 +720,12 @@ def update_graph7(country_predict, data_to_predict, data):
 @app.callback(
     Output('Choropleth Map', 'figure'),
     Input('chorplethdropdown', 'value'),
-    Input('monthchoroplethmap', 'value') # gives a numerical value
-)
-def choropleth_map(choroplethdropdown, monthchoroplethmap):
-    global df
-
-    my_df = get_month_df(df) # Split months cause slider
+    Input('monthchoroplethmap', 'value'),# gives a numerical value
+    Input('month-df', 'data'))
+def choropleth_map(choroplethdropdown, monthchoroplethmap, month_df_loaded):
+    my_df = pd.read_json(month_df_loaded, orient='split')
+    my_df['date'] = my_df['date'].dt.strftime('%Y-%m-%d')
+    
     my_df = my_df.groupby(['iso_code','month'], sort=False).mean().reset_index()
     my_df = my_df[my_df['iso_code'].str.contains('OWID')==False]
     
@@ -739,7 +742,7 @@ def choropleth_map(choroplethdropdown, monthchoroplethmap):
     background_color = '#F5F2E8'
 
     fig.update_layout(font_family = 'Balto',font_color = '#000000',
-    font_size = 18, plot_bgcolor=background_color,paper_bgcolor = background_color,
+    font_size = 18, plot_bgcolor=background_color,
         geo=dict(
             showframe=False,
             showcoastlines=False,

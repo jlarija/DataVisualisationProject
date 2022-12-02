@@ -1,94 +1,84 @@
-import pickle
-from utils import *
-import plotly.express as px
-import pandas as pd
-import pycountry
+import time
+
+import dash
+import dash_bootstrap_components as dbc
 import numpy as np
+import plotly.graph_objs as go
+from dash import Input, Output, dcc, html
 
-with open('df.pickle', 'rb') as dffile:
-        df,variables_each_country = pickle.load(dffile)
+app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-fifa_ranking = pd.read_csv('fifa_ranking-2022-10-06.csv')
-fifa_ranking = fifa_ranking.drop(columns = ['total_points', 'previous_points', 'rank_change', 'confederation', 'country_full']).reset_index()
-
-# get the 2020 ranking
-fifa_ranking = fifa_ranking[fifa_ranking['rank_date'].str.contains('2020') == True]
-fifa_ranking = fifa_ranking[fifa_ranking['rank_date'] == '2020-04-09']
-fifa_ranking = fifa_ranking.sort_values(by='rank').reset_index()
-fifa_ranking = fifa_ranking.drop(columns = ['level_0', 'index'])
-
-# sort the original dataframe with covid data
-df = df[df['iso_code'].str.contains('OWID')==False]
-df = df[df['date'] == '2020-04-09']
-df.rename(columns ={'iso_code':'country_abrv'}, inplace=True)
-df = df[['country_abrv', 'total_cases']]
-
-# match the dataframes
-final_rank = df.merge(fifa_ranking, how='left', on='country_abrv')
-final_rank = final_rank.dropna()
-final_rank = final_rank.rename(columns = {'rank':'fifa_rank'})
-# create a ranking of the covid cases
-final_rank['total_cases_rank'] = final_rank['total_cases'].rank(method = 'max', ascending = False)
-
-final_df = final_rank.sort_values(by='fifa_rank')
-iso_2 = []
-
-for element in final_df['country_abrv']:
-    country_data = pycountry.countries.get(alpha_3 = str(element))
-    iso_2.append(country_data.alpha_2)
-
-alpha2 = pd.Series(iso_2)
-# final_df['iso_2'] = alpha2
-final_df = final_df.reset_index()
-final_df['iso_2'] = alpha2
-final_df = final_df.drop(columns = ['index'])
-
-
-# PLOT
-
-# Create figure with secondary y-axis
-fig = px.scatter(
-    final_df,
-    x = 'total_cases_rank', 
-    y = 'fifa_rank',
-    hover_name = 'country_abrv',
-    hover_data =['fifa_rank', 'total_cases_rank']
+app.layout = dbc.Container(
+    [
+        dcc.Store(id="store"),
+        html.H1("Dynamically rendered tab content"),
+        html.Hr(),
+        dbc.Button(
+            "Regenerate graphs",
+            color="primary",
+            id="button",
+            className="mb-3",
+        ),
+        dbc.Tabs(
+            [
+                dbc.Tab(label="Scatter", tab_id="scatter"),
+                dbc.Tab(label="Histograms", tab_id="histogram"),
+            ],
+            id="tabs",
+            active_tab="scatter",
+        ),
+        html.Div(id="tab-content", className="p-4"),
+    ]
 )
 
-fig.update_traces(marker_color = '#000000')
 
-min_dim = final_df[['fifa_rank', 'total_cases_rank']].max().idxmax()
-maxi = final_df[min_dim].max()
-for i, row in final_df.iterrows():
-    country_iso = row['iso_2']
-    fig.add_layout_image(
-        dict(
-            source=f"https://raw.githubusercontent.com/matahombres/CSS-Country-Flags-Rounded/master/flags/{country_iso}.png",
-            xref="x",
-            yref="y",
-            xanchor="center",
-            yanchor="middle",
-            x=row["total_cases_rank"],
-            y=row["fifa_rank"],
-            sizex=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025 + maxi * 0.03,
-            sizey=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025+ maxi * 0.03,
-            sizing="contain",
-            opacity=0.95,
-            layer="above"
-        )
-    ) 
-
-
-fig.update_layout(
-    title_text="COVID cases on 09-04-2020 vs Fifa World Ranking for the same date",
-    height=600, width=1000, plot_bgcolor="#FFFFFF")
+@app.callback(
+    Output("tab-content", "children"),
+    [Input("tabs", "active_tab"), Input("store", "data")],
+)
+def render_tab_content(active_tab, data):
+    """
+    This callback takes the 'active_tab' property as input, as well as the
+    stored graphs, and renders the tab content depending on what the value of
+    'active_tab' is.
+    """
+    if active_tab and data is not None:
+        if active_tab == "scatter":
+            return dcc.Graph(figure=data["scatter"])
+        elif active_tab == "histogram":
+            return dbc.Row(
+                [
+                    dbc.Col(dcc.Graph(figure=data["hist_1"]), width=6),
+                    dbc.Col(dcc.Graph(figure=data["hist_2"]), width=6),
+                ]
+            )
+    return "No tab selected"
 
 
-# Set y-axes titles
-fig.update_yaxes(title_text="<b>Fifa Rank</b>", showgrid = True, 
-griddash = 'dash', gridcolor = '#D4D4D4')
-fig.update_xaxes(title_text="<b>COVID Cases Rank</b>", showgrid = True, 
-griddash = 'dash', gridcolor = '#D4D4D4')
+@app.callback(Output("store", "data"), [Input("button", "n_clicks")])
+def generate_graphs(n):
+    """
+    This callback generates three simple graphs from random data.
+    """
+    if not n:
+        # generate empty graphs when app loads
+        return {k: go.Figure(data=[]) for k in ["scatter", "hist_1", "hist_2"]}
 
-fig.show()
+    # simulate expensive graph generation process
+    time.sleep(2)
 
+    # generate 100 multivariate normal samples
+    data = np.random.multivariate_normal([0, 0], [[1, 0.5], [0.5, 1]], 100)
+
+    scatter = go.Figure(
+        data=[go.Scatter(x=data[:, 0], y=data[:, 1], mode="markers")]
+    )
+    hist_1 = go.Figure(data=[go.Histogram(x=data[:, 0])])
+    hist_2 = go.Figure(data=[go.Histogram(x=data[:, 1])])
+
+    # save figures in a dictionary for sending to the dcc.Store
+    return {"scatter": scatter, "hist_1": hist_1, "hist_2": hist_2}
+
+
+if __name__ == "__main__":
+    app.run_server(debug=True, port=8878)
