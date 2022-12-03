@@ -6,7 +6,7 @@ columns_to_remove = ['iso_code', 'continent', 'location', 'date', 'tests_units']
 columns_fixed = ['gdp_per_capita', 'extreme_poverty', 'cardiovasc_death_rate', 'diabetes_prevalence',
                  'female_smokers', 'male_smokers', 'handwashing_facilities', 'hospital_beds_per_thousand',
                  'life_expectancy', 'human_development_index', 'population', 'population_density', 'median_age',
-                 'aged_65_older', 'aged_70_older', 'tests_units']
+                 'aged_65_older', 'aged_70_older']
 """
 def get_var_each_country():
     
