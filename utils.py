@@ -3966,27 +3966,26 @@ def get_month_df(df):
     return new_df
 
 
-def apply_constraints(df, constraints):
-    if constraints == []:
+def apply_constraints(df, constraint):
+    if not constraint:
         return df
     new_df = df
-    for constraint in constraints:
-        col = constraint[0]
-        sign = constraint[1]
-        number = constraint[2]
-        if col not in df.columns:
-            continue
-        if sign == '>':
-            new_df = new_df[new_df[col] > number]
-        elif sign == '>=':
-            new_df = new_df[new_df[col] >= number]
-        elif sign == '=':
-            new_df = new_df[new_df[col] == number]
-        elif sign == '<=':
-            new_df = new_df[new_df[col] <= number]
-        elif sign == '<':
-            new_df = new_df[new_df[col] < number]
-    new_df.reset_index(drop=False, inplace=True)
+    col = constraint[0]
+    sign = constraint[1]
+    number = constraint[2]
+    if col not in df.columns:
+        return new_df
+    if sign == '>':
+        new_df = new_df[new_df[col] > number]
+    elif sign == '>=':
+        new_df = new_df[new_df[col] >= number]
+    elif sign == '=':
+        new_df = new_df[new_df[col] == number]
+    elif sign == '<=':
+        new_df = new_df[new_df[col] <= number]
+    elif sign == '<':
+        new_df = new_df[new_df[col] < number]
+    new_df.reset_index(drop=True, inplace=True)
     return new_df
 
 

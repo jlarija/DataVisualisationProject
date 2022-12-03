@@ -77,8 +77,8 @@ for col in columns_to_remove:
 
 original_df = df
 constraint_added = []
-#none_all_col = columns_fixed.copy()
-#none_all_col.insert(0, 'None')
+# none_all_col = columns_fixed.copy()
+# none_all_col.insert(0, 'None')
 
 variables_first_country = variables_each_country[df['location'][0]]
 
@@ -161,7 +161,7 @@ app.layout = html.Div([
                      id='country-continent-choice'),
 
         html.Br(),
-        html.Label("Variables to plot"),
+        html.Label("Variables to plot (max 5)"),
         dcc.Dropdown(variables_first_country, variables_first_country[0], id='y-axis', multi=True)
     ]),
 
@@ -298,7 +298,7 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
     new_month_df = pd.read_json(month_df_stored, orient='split')
     new_month_df['date'] = new_month_df['date'].dt.strftime('%Y-%m-%d')
     if radio_activate == 'Reset':
-        constraint_added.clear()
+        # constraint_added.clear()
         string = u'0 conditions added'
         times_clicked = 0
         new_df = original_df
@@ -308,8 +308,8 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
         string = u'{} conditions added'.format(max([0, number_conditions_added - 1]))
         times_clicked = max([0, number_conditions_added - 1])
     else:
-        constraint_added.append([var_filter, sign_filter, num_filter])
-        new_df = apply_constraints(new_df, constraint_added)
+        # constraint_added.append([var_filter, sign_filter, num_filter])
+        new_df = apply_constraints(new_df, [var_filter, sign_filter, num_filter])
         new_month_df = get_month_df(new_df)
         string = u'{} conditions added'.format(number_conditions_added)
         times_clicked = number_conditions_added
@@ -332,14 +332,27 @@ def change_available_countries_mult(data):
 
 @app.callback(
     Output('y-axis', 'options'),
-    Output('y-axis', 'value'),
     Input('country-continent-choice', 'value'))
 def y_axis_based_on_location(country_cont_choice):
     variables_to_show = variables_each_country[country_cont_choice]
     for col in columns_to_remove:
         if col in variables_to_show:
             variables_to_show.remove(col)
-    return variables_to_show, [variables_to_show[0], variables_to_show[1]]
+    return variables_to_show
+
+
+@app.callback(
+    Output('y-axis', 'value'),
+    Input('y-axis', 'options'),
+    Input('y-axis', 'value'))
+def limit_number_choice(options_available, values_chosen):
+    for val in values_chosen:
+        if val not in options_available:
+            return [options_available[0], options_available[1]]
+    if len(values_chosen) <= 5:
+        return values_chosen
+    else:
+        return values_chosen[:5]
 
 
 @app.callback(
@@ -370,21 +383,17 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
                 yaxis="y" + str(i + 1)
             ))
 
+    hex_colors_plotly = ['#636efa', '#ef553b', '#00cc96', '#ac65fa', '#ffa25b']
     layout = {}
-    color_hex = "#" + ''.join([random.choice('ABCDEF0123456789') for i in range(6)])
-    layout['yaxis'] = {'tickfont': {'color': color_hex},
-                       'title': {'font': {'color': color_hex}, 'text': variables_chosen[0]}}
+    layout['yaxis'] = {'tickfont': {'color': hex_colors_plotly[0]},
+                       'title': {'font': {'color': hex_colors_plotly[0]}, 'text': variables_chosen[0]}}
     layout['xaxis'] = {'domain': [0.3, 0.9]}
 
-    for i in range(len(variables_chosen)):
-        if i == 0:
-            continue
-        else:
-            color_hex = "#" + ''.join([random.choice('ABCDEF0123456789') for j in range(6)])
-            pos = i * 0.3 / len(variables_chosen)
-            layout['yaxis' + str(i + 1)] = {'anchor': 'free', 'position': pos, 'overlaying': 'y', 'side': 'left',
-                                            'tickfont': {'color': color_hex},
-                                            'title': {'font': {'color': color_hex}, 'text': variables_chosen[i]}}
+    for i in range(1, len(variables_chosen)):
+        pos = ((i * 1.4) * 0.25 / len(variables_chosen)) - 0.05
+        layout['yaxis' + str(i + 1)] = {'anchor': 'free', 'position': pos, 'overlaying': 'y', 'side': 'left',
+                                        'tickfont': {'color': hex_colors_plotly[i]},
+                                        'title': {'font': {'color': hex_colors_plotly[i]}, 'text': variables_chosen[i]}}
 
     fig.update_layout(layout)
     fig.update_layout(title='Evolution of the chosen variables over time')
@@ -735,6 +744,7 @@ def update_graph7(country_predict, data_to_predict, data):
     fig = px.line(prediction_df, x="date", y="value")
 
     fig.update_yaxes(title=str(data_to_predict + " predicted for next 3 months"))
+    fig.add_vline(x=x[-91], line_width=1, line_color="red")
 
     return fig
 
