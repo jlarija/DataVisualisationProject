@@ -72,6 +72,85 @@ def fifa_plot(df):
 
     return fig
 
+def plane_data_plot(df):
+
+    airtraffic = pd.read_csv('avia_tf_cm__custom_1858764_page_linear.csv')
+    airtraffic = airtraffic[['unit', 'TIME_PERIOD', 'OBS_VALUE']]  
+    covid = df[df['location'] == 'Europe']
+    covid = covid[['date', 'new_cases', 'new_deaths','total_vaccinations']]
+    covid_monthly =  get_month_df(covid)
+    cc = covid_monthly.groupby(['month'],sort=False).mean().reset_index()
+    cc = cc.truncate(after=23)
+    airtraffic = airtraffic.truncate(after=23)
+    airtraffic['new_cases'] = cc['new_cases']
+    airtraffic['new_deaths'] = cc['new_deaths']
+    airtraffic['total_vaccinations'] = cc['total_vaccinations']
+
+    color_bins = '#3b6978' 
+    color_line1 = '#e63946'
+    color_line2 = '#975ea9'
+
+    fig = go.Figure()
+
+    
+
+    fig.add_trace(go.Bar(x=airtraffic['TIME_PERIOD'], y=airtraffic['OBS_VALUE'], name='Passengers traveling by plane', marker_color = color_bins))
+    fig.add_trace(go.Scatter(x=airtraffic['TIME_PERIOD'], y=airtraffic['new_cases'], name='monthly new COVID cases', yaxis = 'y2', marker_color = color_line1,opacity=0.8))
+    fig.add_trace(go.Scatter(x=airtraffic['TIME_PERIOD'], y=airtraffic['new_deaths'], name='monthly new COVID deaths', yaxis = 'y3', marker_color = color_line2, opacity=0.8))
+
+    fig.update_layout(xaxis=dict(domain=[0.2, 0.9]),
+        yaxis = dict(title="Monthly Air Passengers", titlefont=dict(color=color_bins,),tickfont=dict(
+                color=color_bins
+            )), 
+            yaxis2=dict(
+            title="Monthly new COVID cases",
+            titlefont=dict(
+                color=color_line1
+            ),
+            tickfont=dict(
+                color=color_line1
+            ),
+            anchor="free",
+            overlaying="y",
+            side="right",
+            position=1
+        ),
+        yaxis3=dict(
+            title="Monthly new COVID deaths",
+            titlefont=dict(
+                color=color_line2
+            ),
+            tickfont=dict(
+                color=color_line2
+            ),
+            anchor="free",
+            overlaying="y",
+            side="right",
+            position=0.9
+        ))
+
+
+    fig.update_layout(template = 'plotly_white', width=1000,
+    legend=dict(
+        yanchor="top",
+        y=1.3,
+        xanchor="left",
+        x=0.5
+    ) 
+    )
+
+    fig.add_layout_image(
+        dict(
+            source="airplane-clipart-transparent-7.png",
+            xref="paper", yref="paper",
+            x=0.65, y=0.5,
+            sizex=0.45, sizey=0.45,
+            xanchor="right", yanchor="bottom"
+        )
+    )
+    
+    return fig
+
 all_col = list(df.columns)
 for col in columns_to_remove:
     all_col.remove(col)
@@ -255,7 +334,11 @@ app.layout = html.Div([
         }
     ),
     html.H3('The beginning of COVID: did football fans contribute to spreading COVID?'),
-    dcc.Graph(figure = fifa_plot(fifa_df))
+    dcc.Graph(figure = fifa_plot(fifa_df)),
+    html.Br(),
+    html.Div([
+    html.H3('Fluctuations in freedom: travel data for the EU show the same trend as the COVID deaths and cases'),
+    dcc.Graph(figure = plane_data_plot(df))])
 ])
 
 
