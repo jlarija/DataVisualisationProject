@@ -74,6 +74,8 @@ def fifa_plot(df):
 all_col = list(df.columns)
 for col in columns_to_remove:
     all_col.remove(col)
+for col in columns_fixed:
+    all_col.remove(columns_fixed)
 
 original_df = df
 constraint_added = []
@@ -540,51 +542,29 @@ def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
     Input('month-slider-dependence', 'value'),
     Input('size-dot-dependence', 'value'),
     Input('month-df', 'data'))
-def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data):
-    stored_df = pd.read_json(month_data, orient='split')
-    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    month = months_list[month]
-    all_countries = stored_df['location'].unique()
-    x_values = []
-    y_values = []
-    all_continents = []
-    size_dot_values = []
-    for country in all_countries:
-        country_df = stored_df[stored_df['location'] == country]
-        if x_axis_var in variables_each_country[country]:
-            country_df_x = country_df[['month', x_axis_var]]
-            if month in country_df_x['month'].unique():
-                x_values.append(country_df_x[country_df_x['month'] == month][x_axis_var].mean())
-            else:
-                x_values.append(0)
-        else:
-            x_values.append(0)
+def update_dependence_graphs(x_axis_var, y_axis_var, month_slider, size_dot, month_data):
+    my_df = pd.read_json(month_data, orient='split')
+    my_df['date'] = my_df['date'].dt.strftime('%Y-%m-%d')
 
-        if y_axis_var in variables_each_country[country]:
-            country_df_y = country_df[['month', y_axis_var]]
-            if month in country_df_y['month'].unique():
-                y_values.append(country_df_y[country_df_y['month'] == month][y_axis_var].mean())
-            else:
-                y_values.append(0)
-        else:
-            y_values.append(0)
+    cont_df = my_df.copy()
+    current_month = months_list[month_slider]
+    my_df = my_df.groupby(['iso_code', 'month'], sort=False).mean().reset_index()
+    my_df = my_df[my_df['iso_code'].str.contains('OWID') == False]
+    my_df = my_df[my_df['month'] == current_month]
 
-        all_continents.append(country_df['continent'].iloc[0])
-        if size_dot == 'trust_in_gov':
-            val = trust_df[trust_df['location'] == country]['trust_in_gov'].item()
-        else:
-            val = country_df[size_dot].iloc[0]
-        if not math.isnan(val) and val != 0:
-            size_dot_values.append(val)
-        else:
-            size_dot_values.append(1)
-    new_df = pd.DataFrame({'country': all_countries, 'continent': all_continents, x_axis_var: x_values,
-                           y_axis_var: y_values, size_dot: size_dot_values})
+    cont_df = cont_df[cont_df['iso_code'].str.contains('OWID') == False]
+    cont_df = cont_df[cont_df['month'] == current_month].drop_duplicates('iso_code')
 
+    my_df['continent'] = list(cont_df['continent'])
+    my_df['location'] = list(cont_df['location'])
+    trust_df_indexed = trust_df.set_index('location')
+    trusts = list(trust_df_indexed.loc[list(cont_df['location'])].fillna(1)['trust_in_gov'])
+    my_df['trust_in_gov'] = trusts
+    new_df = pd.DataFrame.from_dict({'country': list(my_df['location']), 'continent': list(my_df['continent']), x_axis_var: list(my_df[x_axis_var]),
+                                    y_axis_var: list(my_df[y_axis_var]), size_dot: list(my_df[size_dot])})
     fig = px.scatter(new_df, x=x_axis_var, y=y_axis_var,
                      size=size_dot, color="continent", hover_name="country",
                      size_max=18)
-
     return fig
 
 
