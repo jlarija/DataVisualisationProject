@@ -8,12 +8,13 @@ import plotly.graph_objects as go
 from utils import *
 import warnings
 import pickle
+from PIL import Image
 import numpy as np
 
 warnings.filterwarnings('ignore')
 
 app = Dash(__name__)
-
+img = Image.open('/home/jlarija/Documents/Academics/Data Analysis and Visualisation/FinalProject/DataVisualisationProject/airplane-clipart-transparent-7.png')
 # Comment the next line and uncomment the 3 after to do your tests to avoid loading time, but the nans might fail your
 # tests
 # df, variables_each_country = get_preprocessed_df()
@@ -141,7 +142,7 @@ def plane_data_plot(df):
 
     fig.add_layout_image(
         dict(
-            source="airplane-clipart-transparent-7.png",
+            source=img,
             xref="paper", yref="paper",
             x=0.65, y=0.5,
             sizex=0.45, sizey=0.45,
@@ -175,6 +176,11 @@ for countr in df['location'].unique():
 
 col_fixed_new_df = columns_fixed.copy()
 col_fixed_new_df.insert(0, 'trust_in_gov')
+
+col_geomap = all_col.copy()
+for column in col_geomap:
+    col_geomap.remove(column)
+      
 
 app.layout = html.Div([
     dcc.Store(data=df.to_json(date_format='iso', orient='split'), id='df'),
@@ -212,7 +218,7 @@ app.layout = html.Div([
     html.Br(),
     html.Div([html.H1('A look at the world:'),
         html.Div([
-        dcc.Dropdown(df.columns, 'total_cases', id='chorplethdropdown')], 
+        dcc.Dropdown(col_geomap, 'total_cases', id='chorplethdropdown')], 
         style={'width': '39%', 'display': 'inline-block'}),
         dcc.Graph(id = 'Choropleth Map'),
         dcc.Slider(
