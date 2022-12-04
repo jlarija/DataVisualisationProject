@@ -10,11 +10,14 @@ import warnings
 import pickle
 import numpy as np
 import dash_bootstrap_components as dbc
+from PIL import Image
 
 warnings.filterwarnings('ignore')
 
-app = Dash(__name__)
+external_stylesheets = [dbc.themes.BOOTSTRAP]
+app = Dash(__name__,external_stylesheets=external_stylesheets)
 
+img = Image.open('/home/jlarija/Documents/Academics/Data Analysis and Visualisation/FinalProject/DataVisualisationProject/airplane-clipart-transparent-7.png')
 # Comment the next line and uncomment the 3 after to do your tests to avoid loading time, but the nans might fail your
 # tests
 # df, variables_each_country = get_preprocessed_df()
@@ -73,6 +76,85 @@ def fifa_plot(df):
 
     return fig
 
+def plane_data_plot(df):
+
+    airtraffic = pd.read_csv('avia_tf_cm__custom_1858764_page_linear.csv')
+    airtraffic = airtraffic[['unit', 'TIME_PERIOD', 'OBS_VALUE']]  
+    covid = df[df['location'] == 'Europe']
+    covid = covid[['date', 'new_cases', 'new_deaths','total_vaccinations']]
+    covid_monthly =  get_month_df(covid)
+    cc = covid_monthly.groupby(['month'],sort=False).mean().reset_index()
+    cc = cc.truncate(after=23)
+    airtraffic = airtraffic.truncate(after=23)
+    airtraffic['new_cases'] = cc['new_cases']
+    airtraffic['new_deaths'] = cc['new_deaths']
+    airtraffic['total_vaccinations'] = cc['total_vaccinations']
+
+    color_bins = '#3b6978' 
+    color_line1 = '#e63946'
+    color_line2 = '#975ea9'
+
+    fig = go.Figure()
+
+    
+
+    fig.add_trace(go.Bar(x=airtraffic['TIME_PERIOD'], y=airtraffic['OBS_VALUE'], name='Passengers traveling by plane', marker_color = color_bins))
+    fig.add_trace(go.Scatter(x=airtraffic['TIME_PERIOD'], y=airtraffic['new_cases'], name='monthly new COVID cases', yaxis = 'y2', marker_color = color_line1,opacity=0.8))
+    fig.add_trace(go.Scatter(x=airtraffic['TIME_PERIOD'], y=airtraffic['new_deaths'], name='monthly new COVID deaths', yaxis = 'y3', marker_color = color_line2, opacity=0.8))
+
+    fig.update_layout(xaxis=dict(domain=[0.2, 0.9]),
+        yaxis = dict(title="Monthly Air Passengers", titlefont=dict(color=color_bins,),tickfont=dict(
+                color=color_bins
+            )), 
+            yaxis2=dict(
+            title="Monthly new COVID cases",
+            titlefont=dict(
+                color=color_line1
+            ),
+            tickfont=dict(
+                color=color_line1
+            ),
+            anchor="free",
+            overlaying="y",
+            side="right",
+            position=1
+        ),
+        yaxis3=dict(
+            title="Monthly new COVID deaths",
+            titlefont=dict(
+                color=color_line2
+            ),
+            tickfont=dict(
+                color=color_line2
+            ),
+            anchor="free",
+            overlaying="y",
+            side="right",
+            position=0.9
+        ))
+
+
+    fig.update_layout(template = 'plotly_white', width=1000,
+    legend=dict(
+        yanchor="top",
+        y=1.3,
+        xanchor="left",
+        x=0.5
+    ) 
+    )
+
+    fig.add_layout_image(
+        dict(
+            source=img,
+            xref="paper", yref="paper",
+            x=0.65, y=0.5,
+            sizex=0.45, sizey=0.45,
+            xanchor="right", yanchor="bottom"
+        )
+    )
+    
+    return fig
+
 all_col = list(df.columns)
 for col in columns_to_remove:
     all_col.remove(col)
@@ -98,11 +180,82 @@ for countr in df['location'].unique():
 col_fixed_new_df = columns_fixed.copy()
 col_fixed_new_df.insert(0, 'trust_in_gov')
 
+col_geomap = all_col.copy()
+for column in col_geomap:
+    col_geomap.remove(column)
 
+#####################
+# DASHBOARD LAYOUT
+app.layout = html.Div(
+    [
+    dcc.Store(data=df.to_json(date_format='iso', orient='split'), id='df'),
+    dcc.Store(data=months_df.to_json(date_format='iso', orient='split'), id='month-df'),
 
+    dbc.Row(
+        dbc.Col(
+            html.Div(html.H1('COVID 19 Data Exploration',style = {'color': 'black','font_size': '36px'})),
+            width={"size": 6, "offset": 3},
+    )
+    ),
+    dbc.Row(
+        dbc.Col([
+            html.Div([
+            html.H3('Data filtering',style={'color': 'black' }),
+            html.Div([
+            html.Label("Activate filtering"),
+            dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
+            html.Br(),
+            html.Div([
+                dcc.Dropdown(none_all_col, none_all_col[0], id='variable-to-filter')
+            ], style={'width': '39%', 'display': 'inline-block'}),
+            html.Div([
+                dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter')
+            ], style={'width': '20%', 'display': 'inline-block'}),
+            html.Div([
+                dcc.Input(id='num-to-filter', type='number', value=0),
+            ], style={'width': '39%', 'display': 'inline-block'}),
+            html.Button(id='filtering-button', n_clicks=0, children='Filter'),
+            html.Div(id='times-clicked')], 
+            style={'width': '48%', 'display': 'inline-block'})])],
+        width={"size": 6, "offset": 3}
+        )
+        ),
+
+    dbc.Row(
+        [
+        dbc.Col([
+            html.H1('A look at the world:'),
+            html.Div([
+            dcc.Dropdown(col_geomap, 'total_cases', id='chorplethdropdown')], 
+            style={'width': '30%', 'display': 'inline-block'}),
+            dcc.Graph(id = 'Choropleth Map'),
+            dcc.Slider(
+                0,
+                len(months_list) - 1,
+                marks={i: str(slider_months[i]) for i in range(len(slider_months))},
+                updatemode='mouseup',
+                value=0,
+                id='monthchoroplethmap')                   
+        ],width=7),
+
+        dbc.Col([html.H6('Evolution of multiple variables in time'),
+        html.Label("Select country or continent"),
+        html.Div([dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
+                     id='country-continent-choice')],style={'width': '30%'}),
+        
+        html.Label("Choose variables to plot"),
+        html.Div([dcc.Dropdown(variables_first_country, variables_first_country[0], id='y-axis', multi=True)], 
+        style={'width': '60%'}),
+        dcc.Graph(id='variables-graph')],width=5)
+        ]
+    ),
+
+]
+)
 
 #####################
 # Filtering
+
 @app.callback(
     Output('times-clicked', 'children'),
     Output('filtering-button', 'n_clicks'),
@@ -140,6 +293,55 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
     return string, times_clicked, new_df.to_json(date_format='iso', orient='split'), new_month_df.to_json(
         date_format='iso', orient='split')
 
+#######################
+# Chorpleth Map
+@app.callback(
+    Output('Choropleth Map', 'figure'),
+    Input('chorplethdropdown', 'value'),
+    Input('monthchoroplethmap', 'value') # gives a numerical value
+)
+def choropleth_map(choroplethdropdown, monthchoroplethmap):
+    global df
+
+    my_df = get_month_df(df) # Split months cause slider
+    my_df = my_df.groupby(['iso_code','month'], sort=False).mean().reset_index()
+    my_df = my_df[my_df['iso_code'].str.contains('OWID')==False]
+    
+    colorscale = ['#ffd7cd','#e3ada0','#c68475', '#a95c4c','#893427', '#690000']
+
+    current_month = months_list[monthchoroplethmap]
+    my_df = my_df[my_df['month'] == current_month]
+    min_color = np.max(my_df[str(choroplethdropdown)])
+    max_color = np.min(my_df[str(choroplethdropdown)])
+
+    fig = px.choropleth(my_df, locations = 'iso_code', color = str(choroplethdropdown),
+    color_continuous_scale = colorscale,hover_name="iso_code",range_color = (min_color,max_color))
+
+    background_color = '#F5F2E8'
+
+    fig.update_layout(font_family = 'Balto',font_color = '#000000',
+    font_size = 18, plot_bgcolor=background_color,paper_bgcolor = background_color,
+        geo=dict(
+            showframe=False,
+            showcoastlines=False,
+            countrycolor='#000000',
+            bgcolor= background_color,
+            lakecolor= background_color, 
+            landcolor='rgba(51,17,0,0.2)',
+            subunitcolor='grey'
+            
+        ))
+
+    # Delete antartica
+    fig.add_trace(go.Choropleth(locations=['ATA'],
+                z=[0],
+                colorscale=[[0,background_color], [1, background_color]],
+                marker_line_color=background_color,
+                showlegend=False,
+                showscale=False)
+        )
+    
+    return fig
 
 #######################
 # Multi variables
@@ -156,7 +358,6 @@ def y_axis_based_on_location(country_cont_choice, data):
         if col in variables_to_show:
             variables_to_show.remove(col)
     return variables_to_show, [variables_to_show[0], variables_to_show[1]]
-
 
 @app.callback(
     Output('variables-graph', 'figure'),
@@ -208,6 +409,7 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
     return fig
 
 
+'''
 #######################
 # Correlations
 @app.callback(
@@ -603,7 +805,7 @@ def choropleth_map(choroplethdropdown, monthchoroplethmap):
         )
     
     return fig
-
+'''
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=True,port=8079)
