@@ -433,19 +433,23 @@ def update_not_cumu_corr(country_choice, data):
     not_cumu_vars = ['new_cases_per_million', 'new_deaths_per_million', 'excess_mortality', 'icu_patients_per_million',
                      'hosp_patients_per_million', 'stringency_index', 'reproduction_rate', 'new_tests_per_thousand',
                      'positive_rate', 'new_vaccinations']
-
+    country_vars = variables_each_country[country_choice]
+    sorted_vars = []
+    for var in not_cumu_vars:
+        if var in country_vars:
+            sorted_vars.append(var)
+    not_cumu_vars = sorted_vars
     df_not_cumu = stored_df[stored_df['location'] == country_choice][not_cumu_vars]
 
     corr_mat_not_cumu = df_not_cumu.corr(method='pearson')
-    our_cmap = LinearSegmentedColormap.from_list('rg', ["r", "w", "g"], N=256)
-    # corr_mat_not_cumu.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
+
     corr_dict = {'variables': corr_mat_not_cumu.index}
     for col in corr_mat_not_cumu.columns:
         corr_dict[col] = list(corr_mat_not_cumu[col])
 
     correlation_df = pd.DataFrame(corr_dict)
     correlation_df.set_index('variables')
-    correlation_df.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
+
     update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
 
     return correlation_df.to_dict('records'), update_columns
@@ -458,7 +462,6 @@ def update_not_cumu_corr(country_choice, data):
 def update_cumu_corr(data):
     stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    our_cmap = LinearSegmentedColormap.from_list('rg', ["r", "w", "g"], N=256)
 
     cumulative_vars = ['total_cases_per_million', 'total_deaths_per_million', 'excess_mortality_cumulative_per_million',
                        'total_tests_per_thousand', 'total_vaccinations_per_hundred']
@@ -480,7 +483,6 @@ def update_cumu_corr(data):
     corr_mat_cumu = final_df.corr(method='pearson')
     corr_mat_cumu = corr_mat_cumu.drop(cumulative_vars, axis=0)
     corr_mat_cumu = corr_mat_cumu.drop(columns_fixed, axis=1)
-    # corr_mat_cumu.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
 
     corr_dict = {'variables': corr_mat_cumu.index}
     for col in corr_mat_cumu.columns:
@@ -488,7 +490,7 @@ def update_cumu_corr(data):
 
     correlation_df = pd.DataFrame(corr_dict)
     correlation_df.set_index('variables')
-    correlation_df.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
+
     update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
 
     return correlation_df.to_dict('records'), update_columns
