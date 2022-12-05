@@ -471,7 +471,7 @@ def update_cumu_corr(data):
     final_df_dict = {i: [] for i in total_cumu}
     final_df = pd.DataFrame.from_dict(final_df_dict)
     total_cumu.append('iso_code')
-    df_cumu = df[total_cumu]
+    df_cumu = stored_df[total_cumu]
     prev_iso = df_cumu['iso_code'].iloc[0]
 
     for i in range(len(df_cumu)):
