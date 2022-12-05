@@ -427,7 +427,7 @@ def change_available_countries_corr(data):
     Output('corr-table-not-cumu', 'columns'),
     Input('country-choice', 'value'),
     Input('df', 'data'))
-def update_table_corr(country_choice, data):
+def update_not_cumu_corr(country_choice, data):
     stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
     not_cumu_vars = ['new_cases_per_million', 'new_deaths_per_million', 'excess_mortality', 'icu_patients_per_million',
@@ -455,7 +455,7 @@ def update_table_corr(country_choice, data):
     Output('corr-table-cumu', 'data'),
     Output('corr-table-cumu', 'columns'),
     Input('df', 'data'))
-def update_table_corr(data):
+def update_cumu_corr(data):
     stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
     our_cmap = LinearSegmentedColormap.from_list('rg', ["r", "w", "g"], N=256)
