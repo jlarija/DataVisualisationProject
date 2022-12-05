@@ -319,6 +319,90 @@ def update_graph7(country_predict, data_to_predict, data):
     return fig
 
 #######################
+# Correlations
+@app.callback(
+    Output('country-choice', 'options'),
+    Output('country-choice', 'value'),
+    Input('df', 'data'))
+def change_available_countries_corr(data):
+    used_df = pd.read_json(data, orient='split')
+    all_countries = used_df['location'].unique()
+    return all_countries, all_countries[0]
+
+@app.callback(
+    Output('corr-table-not-cumu', 'data'),
+    Output('corr-table-not-cumu', 'columns'),
+    Input('country-choice', 'value'),
+    Input('df', 'data'))
+def update_not_cumu_corr(country_choice, data):
+    stored_df = pd.read_json(data, orient='split')
+    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
+    not_cumu_vars = ['new_cases_per_million', 'new_deaths_per_million', 'excess_mortality', 'icu_patients_per_million',
+                     'hosp_patients_per_million', 'stringency_index', 'reproduction_rate', 'new_tests_per_thousand',
+                     'positive_rate', 'new_vaccinations']
+    country_vars = variables_each_country[country_choice]
+    sorted_vars = []
+    for var in not_cumu_vars:
+        if var in country_vars:
+            sorted_vars.append(var)
+    not_cumu_vars = sorted_vars
+    df_not_cumu = stored_df[stored_df['location'] == country_choice][not_cumu_vars]
+
+    corr_mat_not_cumu = df_not_cumu.corr(method='pearson')
+
+    corr_dict = {'variables': corr_mat_not_cumu.index}
+    for col in corr_mat_not_cumu.columns:
+        corr_dict[col] = list(corr_mat_not_cumu[col])
+    correlation_df = pd.DataFrame(corr_dict)
+    correlation_df = correlation_df.round(2)
+    correlation_df.set_index('variables')
+
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
+
+    return correlation_df.to_dict('records'), update_columns
+
+@app.callback(
+    Output('corr-table-cumu', 'data'),
+    Output('corr-table-cumu', 'columns'),
+    Input('df', 'data'))
+def update_cumu_corr(data):
+    stored_df = pd.read_json(data, orient='split')
+    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
+
+    cumulative_vars = ['total_cases_per_million', 'total_deaths_per_million', 'excess_mortality_cumulative_per_million',
+                       'total_tests_per_thousand', 'total_vaccinations_per_hundred']
+    total_cumu = cumulative_vars.copy()
+    for col in columns_fixed:
+        total_cumu.append(col)
+    final_df_dict = {i: [] for i in total_cumu}
+    final_df = pd.DataFrame.from_dict(final_df_dict)
+    total_cumu.append('iso_code')
+    df_cumu = stored_df[total_cumu]
+    prev_iso = df_cumu['iso_code'].iloc[0]
+
+    for i in range(len(df_cumu)):
+        curr_iso = df_cumu['iso_code'].iloc[i]
+        if curr_iso != prev_iso:
+            final_df.loc[len(final_df)] = df_cumu.iloc[i].drop('iso_code')
+            prev_iso = curr_iso
+    final_df.loc[len(final_df)] = df_cumu.iloc[len(df_cumu) - 1].drop('iso_code')
+    corr_mat_cumu = final_df.corr(method='pearson')
+    corr_mat_cumu = corr_mat_cumu.drop(cumulative_vars, axis=0)
+    corr_mat_cumu = corr_mat_cumu.drop(columns_fixed, axis=1)
+
+    corr_dict = {'variables': corr_mat_cumu.index}
+    for col in corr_mat_cumu.columns:
+        corr_dict[col] = list(corr_mat_cumu[col])
+
+    correlation_df = pd.DataFrame(corr_dict)
+    correlation_df = correlation_df.round(2)
+    correlation_df.set_index('variables')
+
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
+
+    return correlation_df.to_dict('records'), update_columns
+
+#######################
 # Dependencies
 @app.callback(
     Output('total-dependence-graph', 'figure'),

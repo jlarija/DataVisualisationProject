@@ -1,7 +1,7 @@
 import math
 import pandas as pd
 import pycountry
-
+import numpy as np
 
 columns_to_remove = ['iso_code', 'continent', 'location', 'date', 'tests_units']
 
@@ -3966,27 +3966,26 @@ def get_month_df(df):
     return new_df
 
 
-def apply_constraints(df, constraints):
-    if constraints == []:
+def apply_constraints(df, constraint):
+    if not constraint:
         return df
     new_df = df
-    for constraint in constraints:
-        col = constraint[0]
-        sign = constraint[1]
-        number = constraint[2]
-        if col not in df.columns:
-            continue
-        if sign == '>':
-            new_df = new_df[new_df[col] > number]
-        elif sign == '>=':
-            new_df = new_df[new_df[col] >= number]
-        elif sign == '=':
-            new_df = new_df[new_df[col] == number]
-        elif sign == '<=':
-            new_df = new_df[new_df[col] <= number]
-        elif sign == '<':
-            new_df = new_df[new_df[col] < number]
-    new_df.reset_index(drop=False, inplace=True)
+    col = constraint[0]
+    sign = constraint[1]
+    number = constraint[2]
+    if col not in df.columns:
+        return new_df
+    if sign == '>':
+        new_df = new_df[new_df[col] > number]
+    elif sign == '>=':
+        new_df = new_df[new_df[col] >= number]
+    elif sign == '=':
+        new_df = new_df[new_df[col] == number]
+    elif sign == '<=':
+        new_df = new_df[new_df[col] <= number]
+    elif sign == '<':
+        new_df = new_df[new_df[col] < number]
+    new_df.reset_index(drop=True, inplace=True)
     return new_df
 
 
@@ -4032,41 +4031,55 @@ def generate_data(training_data):
 
     return new_df
 
-def get_fifa_data(df):
 
+def get_fifa_data(df):
     fifa_ranking = pd.read_csv('fifa_ranking-2022-10-06.csv')
-    fifa_ranking = fifa_ranking.drop(columns = ['total_points', 'previous_points', 'rank_change', 'confederation', 'country_full']).reset_index()
+    fifa_ranking = fifa_ranking.drop(
+        columns=['total_points', 'previous_points', 'rank_change', 'confederation', 'country_full']).reset_index()
 
     # get the 2020 ranking
     fifa_ranking = fifa_ranking[fifa_ranking['rank_date'] == '2020-04-09']
     fifa_ranking = fifa_ranking.sort_values(by='rank').reset_index()
-    fifa_ranking = fifa_ranking.drop(columns = ['level_0', 'index'])
+    fifa_ranking = fifa_ranking.drop(columns=['level_0', 'index'])
 
     # sort the original dataframe with covid data
-    df_fifa = df[df['iso_code'].str.contains('OWID')==False]
+    df_fifa = df[df['iso_code'].str.contains('OWID') == False]
     df_fifa = df_fifa[df_fifa['date'] == '2020-04-09']
-    df_fifa.rename(columns ={'iso_code':'country_abrv'}, inplace=True)
+    df_fifa.rename(columns={'iso_code': 'country_abrv'}, inplace=True)
     df_fifa = df_fifa[['country_abrv', 'total_cases']]
 
     # match the dataframes
     final_rank = df_fifa.merge(fifa_ranking, how='left', on='country_abrv')
     final_rank = final_rank.dropna()
-    final_rank = final_rank.rename(columns = {'rank':'fifa_rank'})
+    final_rank = final_rank.rename(columns={'rank': 'fifa_rank'})
     # create a ranking of the covid cases
-    final_rank['total_cases_rank'] = final_rank['total_cases'].rank(method = 'max', ascending = False)
+    final_rank['total_cases_rank'] = final_rank['total_cases'].rank(method='max', ascending=False)
 
     final_df = final_rank.sort_values(by='fifa_rank')
     iso_2 = []
 
     for element in final_df['country_abrv']:
-        country_data = pycountry.countries.get(alpha_3 = str(element))
+        country_data = pycountry.countries.get(alpha_3=str(element))
         iso_2.append(country_data.alpha_2)
 
     alpha2 = pd.Series(iso_2)
     # final_df['iso_2'] = alpha2
     final_df = final_df.reset_index()
     final_df['iso_2'] = alpha2
-    final_df = final_df.drop(columns = ['index'])
+    final_df = final_df.drop(columns=['index'])
 
     return final_df
 
+
+def info_filtering(data):
+    all_info = {}
+    for var in columns_fixed:
+        stored_df = data[var].dropna().unique()
+        max_val = max(stored_df)
+        min_val = min(stored_df)
+        quantiles = np.quantile(stored_df, q=np.arange(0.25, 1, 0.25))
+        mean_val = np.mean(stored_df)
+        all_info[var] = {"min": min_val, "max": max_val, "mean": mean_val, "25%": quantiles[0],
+                         "50% (median)": quantiles[1], "75%": quantiles[2]}
+
+    return all_info

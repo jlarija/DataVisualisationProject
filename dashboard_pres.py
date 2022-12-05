@@ -5,10 +5,11 @@ from datetime import datetime, timedelta
 from plotly.subplots import make_subplots
 import random
 import plotly.graph_objects as go
-from utils import *
+from utils_2 import *
 import warnings
 import pickle
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 
 warnings.filterwarnings('ignore')
 
@@ -28,14 +29,14 @@ temp_df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
 
 fifa_df = get_fifa_data(df)
 
+
 def fifa_plot(df):
+    fig = px.scatter(df, x='total_cases_rank', y='fifa_rank',
+                     hover_name='country_abrv',
+                     hover_data=['fifa_rank', 'total_cases_rank']
+                     )
 
-    fig = px.scatter(df, x = 'total_cases_rank',  y = 'fifa_rank',
-    hover_name = 'country_abrv',
-    hover_data =['fifa_rank', 'total_cases_rank']
-    )
-
-    fig.update_traces(marker_color = '#000000')
+    fig.update_traces(marker_color='#000000')
 
     min_dim = df[['fifa_rank', 'total_cases_rank']].max().idxmax()
     maxi = df[min_dim].max()
@@ -51,35 +52,37 @@ def fifa_plot(df):
                 x=row["total_cases_rank"],
                 y=row["fifa_rank"],
                 sizex=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025 + maxi * 0.03,
-                sizey=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025+ maxi * 0.03,
+                sizey=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025 + maxi * 0.03,
                 sizing="contain",
                 opacity=0.95,
                 layer="above"
             )
-        ) 
-
+        )
 
     fig.update_layout(
         title_text="COVID cases on 09-04-2020 vs Fifa World Ranking for the same date",
         height=600, width=1000, plot_bgcolor="#FFFFFF")
 
-
     # Set y-axes titles
-    fig.update_yaxes(title_text="<b>Fifa Rank</b>", showgrid = True, 
-    griddash = 'dash', gridcolor = '#D4D4D4')
-    fig.update_xaxes(title_text="<b>COVID Cases Rank</b>", showgrid = True, 
-    griddash = 'dash', gridcolor = '#D4D4D4')
+    fig.update_yaxes(title_text="<b>Fifa Rank</b>", showgrid=True,
+                     griddash='dash', gridcolor='#D4D4D4')
+    fig.update_xaxes(title_text="<b>COVID Cases Rank</b>", showgrid=True,
+                     griddash='dash', gridcolor='#D4D4D4')
 
     return fig
+
 
 all_col = list(df.columns)
 for col in columns_to_remove:
     all_col.remove(col)
+for col in columns_fixed:
+    if col in all_col:
+        all_col.remove(col)
 
 original_df = df
 constraint_added = []
-none_all_col = columns_fixed.copy()
-none_all_col.insert(0, 'None')
+# none_all_col = columns_fixed.copy()
+# none_all_col.insert(0, 'None')
 
 variables_first_country = variables_each_country[df['location'][0]]
 
@@ -97,15 +100,17 @@ for countr in df['location'].unique():
 col_fixed_new_df = columns_fixed.copy()
 col_fixed_new_df.insert(0, 'trust_in_gov')
 
+filtering_dict = info_filtering(df)
+
 app.layout = html.Div([
     dcc.Store(data=df.to_json(date_format='iso', orient='split'), id='df'),
     dcc.Store(data=months_df.to_json(date_format='iso', orient='split'), id='month-df'),
     html.H1('COVID 19: The Data',
-    style = {
-        'textAlign': 'center',
-        'color': 'black',
-        'font_size': '36px'
-    }),
+            style={
+                'textAlign': 'center',
+                'color': 'black',
+                'font_size': '36px'
+            }),
     html.H1(
         'Data filtering',
         style={
@@ -118,7 +123,7 @@ app.layout = html.Div([
         dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
         html.Br(),
         html.Div([
-            dcc.Dropdown(none_all_col, none_all_col[0], id='variable-to-filter')
+            dcc.Dropdown(columns_fixed, columns_fixed[0], id='variable-to-filter')
         ], style={'width': '39%', 'display': 'inline-block'}),
         html.Div([
             dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter')
@@ -130,19 +135,22 @@ app.layout = html.Div([
         html.Button(id='filtering-button', n_clicks=0, children='Filter'),
         html.Div(id='times-clicked')
     ], style={'width': '48%', 'display': 'inline-block'}),
+    html.Div([
+        dash_table.DataTable(id='filter-table')
+    ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
     html.Br(),
     html.Div([html.H1('A look at the world:'),
-        dcc.Dropdown(df.columns, 'total_cases', id='chorplethdropdown'),
-        dcc.Graph(id = 'Choropleth Map'),
-        dcc.Slider(
-            0,
-            len(months_list) - 1,
-            marks={i: str(slider_months[i]) for i in range(len(slider_months))},
-            updatemode='mouseup',
-            value=0,
-            id='monthchoroplethmap'
-        )
-    ]),
+              dcc.Dropdown(df.columns, 'total_cases', id='chorplethdropdown'),
+              dcc.Graph(id='Choropleth Map'),
+              dcc.Slider(
+                  0,
+                  len(months_list) - 1,
+                  marks={i: str(slider_months[i]) for i in range(len(slider_months))},
+                  updatemode='mouseup',
+                  value=0,
+                  id='monthchoroplethmap'
+              )
+              ]),
     html.Br(),
     html.H1(
         'Evolution of multiple variables in time',
@@ -157,7 +165,7 @@ app.layout = html.Div([
                      id='country-continent-choice'),
 
         html.Br(),
-        html.Label("Variables to plot"),
+        html.Label("Variables to plot (max 5)"),
         dcc.Dropdown(variables_first_country, variables_first_country[0], id='y-axis', multi=True)
     ]),
 
@@ -171,29 +179,33 @@ app.layout = html.Div([
             'color': 'black'
         }
     ),
+    html.H3(
+        'Correlations over time',
+        style={
+            'textAlign': 'left',
+            'color': 'blue'
+        }
+    ),
     html.Div([
         html.Div([
             html.Label('Country or continent'),
             dcc.Dropdown([country for country in df['location'].unique()], df['location'][0], id='country-choice')
         ], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
-        html.Div([
-            html.Label('Variable'),
-            dcc.Dropdown([var for var in variables_first_country], variables_first_country[0], id='var-choice'),
-        ], style={'width': '48%', 'display': 'inline-block'}),
-        html.Plaintext('Click on a coefficient to plot the corresponding variable')
-    ], style={'width': '48%', 'display': 'inline-block'}),
+    ]),
     html.Div([
-        dash_table.DataTable(data=temp_df.to_dict('records'),
-                             columns=[{"name": i, "id": i, "selectable": True} for i in temp_df.columns],
-                             id='corr-table')
-    ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
+        dash_table.DataTable(id='corr-table-not-cumu')
+    ]),
     html.Br(),
+    html.H3(
+        'Correlations cumulative with fixed variables',
+        style={
+            'textAlign': 'left',
+            'color': 'blue'
+        }
+    ),
     html.Div([
-        dcc.Graph(id='corr-time-graph')
-    ], style={'width': '48%', 'float': 'left', 'display': 'inline-block', 'padding': '0 20', 'margin-bottom': '5cm'}),
-    html.Div([
-        dcc.Graph(id='corr-graph')
-    ], style={'width': '48%', 'float': 'right', 'display': 'inline-block', 'margin-bottom': '5cm'}),
+        dash_table.DataTable(id='corr-table-cumu')
+    ]),
 
     html.Br(),
     html.H1(
@@ -247,18 +259,34 @@ app.layout = html.Div([
     dcc.Graph(id='predictions-graph'),
     html.Br(),
     html.H1('A Story of COVID Through Unconventional Data',
-        style={
-            'textAlign': 'left',
-            'color': 'black'
-        }
-    ),
+            style={
+                'textAlign': 'left',
+                'color': 'black'
+            }
+            ),
     html.H3('The beginning of COVID: did football fans contribute to spreading COVID?'),
-    dcc.Graph(figure = fifa_plot(fifa_df))
+    dcc.Graph(figure=fifa_plot(fifa_df))
 ])
 
 
 #####################
 # Filtering
+@app.callback(
+    Output('filter-table', 'data'),
+    Output('filter-table', 'columns'),
+    Input('variable-to-filter', 'value')
+)
+def update_info_filtering(variable):
+    info_used = filtering_dict[variable]
+    dict_info = {'variables': list(info_used.keys()),
+                 'value': list(info_used.values())}
+
+    info_df = pd.DataFrame(dict_info)
+    info_df.set_index('variables')
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in info_df.columns]
+    return info_df.to_dict('records'), update_columns
+
+
 @app.callback(
     Output('times-clicked', 'children'),
     Output('filtering-button', 'n_clicks'),
@@ -278,7 +306,7 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
     new_month_df = pd.read_json(month_df_stored, orient='split')
     new_month_df['date'] = new_month_df['date'].dt.strftime('%Y-%m-%d')
     if radio_activate == 'Reset':
-        constraint_added.clear()
+        # constraint_added.clear()
         string = u'0 conditions added'
         times_clicked = 0
         new_df = original_df
@@ -288,8 +316,8 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
         string = u'{} conditions added'.format(max([0, number_conditions_added - 1]))
         times_clicked = max([0, number_conditions_added - 1])
     else:
-        constraint_added.append([var_filter, sign_filter, num_filter])
-        new_df = apply_constraints(new_df, constraint_added)
+        # constraint_added.append([var_filter, sign_filter, num_filter])
+        new_df = apply_constraints(new_df, [var_filter, sign_filter, num_filter])
         new_month_df = get_month_df(new_df)
         string = u'{} conditions added'.format(number_conditions_added)
         times_clicked = number_conditions_added
@@ -309,16 +337,30 @@ def change_available_countries_mult(data):
     all_countries = used_df['location'].unique()
     return all_countries, all_countries[0]
 
+
 @app.callback(
     Output('y-axis', 'options'),
-    Output('y-axis', 'value'),
     Input('country-continent-choice', 'value'))
 def y_axis_based_on_location(country_cont_choice):
     variables_to_show = variables_each_country[country_cont_choice]
     for col in columns_to_remove:
         if col in variables_to_show:
             variables_to_show.remove(col)
-    return variables_to_show, [variables_to_show[0], variables_to_show[1]]
+    return variables_to_show
+
+
+@app.callback(
+    Output('y-axis', 'value'),
+    Input('y-axis', 'options'),
+    Input('y-axis', 'value'))
+def limit_number_choice(options_available, values_chosen):
+    for val in values_chosen:
+        if val not in options_available:
+            return [options_available[0], options_available[1]]
+    if len(values_chosen) <= 5:
+        return values_chosen
+    else:
+        return values_chosen[:5]
 
 
 @app.callback(
@@ -349,21 +391,17 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
                 yaxis="y" + str(i + 1)
             ))
 
+    hex_colors_plotly = ['#636efa', '#ef553b', '#00cc96', '#ac65fa', '#ffa25b']
     layout = {}
-    color_hex = "#" + ''.join([random.choice('ABCDEF0123456789') for i in range(6)])
-    layout['yaxis'] = {'tickfont': {'color': color_hex},
-                       'title': {'font': {'color': color_hex}, 'text': variables_chosen[0]}}
+    layout['yaxis'] = {'tickfont': {'color': hex_colors_plotly[0]},
+                       'title': {'font': {'color': hex_colors_plotly[0]}, 'text': variables_chosen[0]}}
     layout['xaxis'] = {'domain': [0.3, 0.9]}
 
-    for i in range(len(variables_chosen)):
-        if i == 0:
-            continue
-        else:
-            color_hex = "#" + ''.join([random.choice('ABCDEF0123456789') for j in range(6)])
-            pos = i * 0.3 / len(variables_chosen)
-            layout['yaxis' + str(i + 1)] = {'anchor': 'free', 'position': pos, 'overlaying': 'y', 'side': 'left',
-                                            'tickfont': {'color': color_hex},
-                                            'title': {'font': {'color': color_hex}, 'text': variables_chosen[i]}}
+    for i in range(1, len(variables_chosen)):
+        pos = ((i * 1.4) * 0.25 / len(variables_chosen)) - 0.05
+        layout['yaxis' + str(i + 1)] = {'anchor': 'free', 'position': pos, 'overlaying': 'y', 'side': 'left',
+                                        'tickfont': {'color': hex_colors_plotly[i]},
+                                        'title': {'font': {'color': hex_colors_plotly[i]}, 'text': variables_chosen[i]}}
 
     fig.update_layout(layout)
     fig.update_layout(title='Evolution of the chosen variables over time')
@@ -385,120 +423,79 @@ def change_available_countries_corr(data):
 
 
 @app.callback(
-    Output('var-choice', 'options'),
-    Output('var-choice', 'value'),
-    Input('country-choice', 'value'))
-def var_for_country(country_choice):
-    variables_to_show = variables_each_country[country_choice]
-    for col in columns_to_remove:
-        if col in variables_to_show:
-            variables_to_show.remove(col)
-    for col in columns_fixed:
-        if col in variables_to_show:
-            variables_to_show.remove(col)
-    return variables_to_show, variables_to_show[0]
-
-
-@app.callback(
-    Output('corr-table', 'data'),
-    Output('corr-table', 'columns'),
+    Output('corr-table-not-cumu', 'data'),
+    Output('corr-table-not-cumu', 'columns'),
     Input('country-choice', 'value'),
-    Input('var-choice', 'value'),
     Input('df', 'data'))
-def update_table_corr(country_choice, var_choice, data):
+def update_not_cumu_corr(country_choice, data):
     stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    all_features = variables_each_country[country_choice].copy()
+    not_cumu_vars = ['new_cases_per_million', 'new_deaths_per_million', 'excess_mortality', 'icu_patients_per_million',
+                     'hosp_patients_per_million', 'stringency_index', 'reproduction_rate', 'new_tests_per_thousand',
+                     'positive_rate', 'new_vaccinations']
+    country_vars = variables_each_country[country_choice]
+    sorted_vars = []
+    for var in not_cumu_vars:
+        if var in country_vars:
+            sorted_vars.append(var)
+    not_cumu_vars = sorted_vars
+    df_not_cumu = stored_df[stored_df['location'] == country_choice][not_cumu_vars]
 
-    for column in columns_to_remove:
-        if column in all_features:
-            all_features.remove(column)
+    corr_mat_not_cumu = df_not_cumu.corr(method='pearson')
 
-    for column in columns_fixed:
-        if column in all_features:
-            all_features.remove(column)
-
-    country_df = stored_df[stored_df['location'] == country_choice][all_features]
-    corr_mat = country_df.corr(method='pearson')
-
-    pos_corr = corr_mat.sort_values(by=[var_choice], ascending=False, inplace=False)[var_choice]
-    pos_corr = pos_corr[pos_corr < 0.9999]
-
-    pos_variables_most_corr = []
-    pos_corr_coeffs = []
-    pos_all_vars = pos_corr.index
-    for var in pos_all_vars:
-        if 'hundred' not in var and 'smoothed' not in var and 'million' not in var and 'thousand' not in var:
-            pos_variables_most_corr.append(var)
-            pos_corr_coeffs.append(pos_corr[var])
-            if len(pos_variables_most_corr) == 5:
-                break
-
-    neg_corr = corr_mat[corr_mat[var_choice] < 0.0]
-    neg_corr = neg_corr.sort_values(by=[var_choice], ascending=True)[var_choice]
-
-    neg_variables_most_corr = []
-    neg_corr_coeffs = []
-    neg_all_vars = neg_corr.index
-    for var in neg_all_vars:
-        neg_variables_most_corr.append(var)
-        neg_corr_coeffs.append(neg_corr[var])
-        if len(neg_variables_most_corr) == 5:
-            break
-    pos_variables_most_corr.extend(neg_variables_most_corr)
-    pos_corr_coeffs.extend(neg_corr_coeffs)
-    corr_dict = {'variables': pos_variables_most_corr,
-                 'correlation coeff to ' + var_choice: pos_corr_coeffs}
+    corr_dict = {'variables': corr_mat_not_cumu.index}
+    for col in corr_mat_not_cumu.columns:
+        corr_dict[col] = list(corr_mat_not_cumu[col])
 
     correlation_df = pd.DataFrame(corr_dict)
+    correlation_df = correlation_df.round(2)
     correlation_df.set_index('variables')
-    update_columns = [{"name": i, "id": i, "selectable": True} for i in correlation_df.columns]
+
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
 
     return correlation_df.to_dict('records'), update_columns
 
 
 @app.callback(
-    Output('corr-time-graph', 'figure'),
-    Output('corr-graph', 'figure'),
-    Input('country-choice', 'value'),
-    Input('var-choice', 'value'),
-    Input('corr-table', 'active_cell'),
-    Input('corr-table', 'data'),
+    Output('corr-table-cumu', 'data'),
+    Output('corr-table-cumu', 'columns'),
     Input('df', 'data'))
-def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
-    stored_df = pd.read_json(data_stored, orient='split')
+def update_cumu_corr(data):
+    stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    if active_cell:
-        cell_clicked = active_cell['row']
-        var_clicked = data[cell_clicked]['variables']
-    else:
-        var_clicked = var_choice
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    all_dates = stored_df[stored_df['location'] == country_choice]['date']
-    data_1 = stored_df[stored_df['location'] == country_choice][var_choice].to_list()
-    fig.add_trace(
-        go.Scatter(x=all_dates, y=data_1, name=var_choice),
-        secondary_y=False,
-    )
-    data_2 = stored_df[stored_df['location'] == country_choice][var_clicked].to_list()
-    fig.add_trace(
-        go.Scatter(x=all_dates, y=data_2, name=var_clicked),
-        secondary_y=True,
-    )
-    fig.update_layout(title=str('Evolution of ' + var_choice + ' and ' + var_clicked + ' over time'))
-    fig.update_xaxes(title_text='Dates')
 
-    fig.update_yaxes(title_text=var_choice, secondary_y=False)
-    fig.update_yaxes(title_text=var_clicked, secondary_y=True)
+    cumulative_vars = ['total_cases_per_million', 'total_deaths_per_million', 'excess_mortality_cumulative_per_million',
+                       'total_tests_per_thousand', 'total_vaccinations_per_hundred']
+    total_cumu = cumulative_vars.copy()
+    for col in columns_fixed:
+        total_cumu.append(col)
+    final_df_dict = {i: [] for i in total_cumu}
+    final_df = pd.DataFrame.from_dict(final_df_dict)
+    total_cumu.append('iso_code')
+    df_cumu = stored_df[total_cumu]
+    prev_iso = df_cumu['iso_code'].iloc[0]
 
-    fig2 = px.scatter(x=data_1, y=data_2)
-    fig2.update_xaxes(title_text=var_choice)
+    for i in range(len(df_cumu)):
+        curr_iso = df_cumu['iso_code'].iloc[i]
+        if curr_iso != prev_iso:
+            final_df.loc[len(final_df)] = df_cumu.iloc[i].drop('iso_code')
+            prev_iso = curr_iso
+    final_df.loc[len(final_df)] = df_cumu.iloc[len(df_cumu) - 1].drop('iso_code')
+    corr_mat_cumu = final_df.corr(method='pearson')
+    corr_mat_cumu = corr_mat_cumu.drop(cumulative_vars, axis=0)
+    corr_mat_cumu = corr_mat_cumu.drop(columns_fixed, axis=1)
 
-    fig2.update_yaxes(title_text=var_clicked)
-    fig2.update_layout(title=str(var_clicked + ' depending on ' + var_choice),
-                       xaxis={'autorange': False, 'range': [min(data_1), max(data_1)]},
-                       yaxis={'autorange': False, 'range': [min(data_2), max(data_2)]})
-    return fig, fig2
+    corr_dict = {'variables': corr_mat_cumu.index}
+    for col in corr_mat_cumu.columns:
+        corr_dict[col] = list(corr_mat_cumu[col])
+
+    correlation_df = pd.DataFrame(corr_dict)
+    correlation_df = correlation_df.round(2)
+    correlation_df.set_index('variables')
+
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
+
+    return correlation_df.to_dict('records'), update_columns
 
 
 #######################
@@ -510,51 +507,30 @@ def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
     Input('month-slider-dependence', 'value'),
     Input('size-dot-dependence', 'value'),
     Input('month-df', 'data'))
-def update_dependence_graphs(x_axis_var, y_axis_var, month, size_dot, month_data):
-    stored_df = pd.read_json(month_data, orient='split')
-    stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    month = months_list[month]
-    all_countries = stored_df['location'].unique()
-    x_values = []
-    y_values = []
-    all_continents = []
-    size_dot_values = []
-    for country in all_countries:
-        country_df = stored_df[stored_df['location'] == country]
-        if x_axis_var in variables_each_country[country]:
-            country_df_x = country_df[['month', x_axis_var]]
-            if month in country_df_x['month'].unique():
-                x_values.append(country_df_x[country_df_x['month'] == month][x_axis_var].mean())
-            else:
-                x_values.append(0)
-        else:
-            x_values.append(0)
+def update_dependence_graphs(x_axis_var, y_axis_var, month_slider, size_dot, month_data):
+    my_df = pd.read_json(month_data, orient='split')
+    my_df['date'] = my_df['date'].dt.strftime('%Y-%m-%d')
 
-        if y_axis_var in variables_each_country[country]:
-            country_df_y = country_df[['month', y_axis_var]]
-            if month in country_df_y['month'].unique():
-                y_values.append(country_df_y[country_df_y['month'] == month][y_axis_var].mean())
-            else:
-                y_values.append(0)
-        else:
-            y_values.append(0)
+    cont_df = my_df.copy()
+    current_month = months_list[month_slider]
+    my_df = my_df.groupby(['iso_code', 'month'], sort=False).mean().reset_index()
+    my_df = my_df[my_df['iso_code'].str.contains('OWID') == False]
+    my_df = my_df[my_df['month'] == current_month]
 
-        all_continents.append(country_df['continent'].iloc[0])
-        if size_dot == 'trust_in_gov':
-            val = trust_df[trust_df['location'] == country]['trust_in_gov'].item()
-        else:
-            val = country_df[size_dot].iloc[0]
-        if not math.isnan(val) and val != 0:
-            size_dot_values.append(val)
-        else:
-            size_dot_values.append(1)
-    new_df = pd.DataFrame({'country': all_countries, 'continent': all_continents, x_axis_var: x_values,
-                           y_axis_var: y_values, size_dot: size_dot_values})
+    cont_df = cont_df[cont_df['iso_code'].str.contains('OWID') == False]
+    cont_df = cont_df[cont_df['month'] == current_month].drop_duplicates('iso_code')
 
+    my_df['continent'] = list(cont_df['continent'])
+    my_df['location'] = list(cont_df['location'])
+    trust_df_indexed = trust_df.set_index('location')
+    trusts = list(trust_df_indexed.loc[list(cont_df['location'])].fillna(1)['trust_in_gov'])
+    my_df['trust_in_gov'] = trusts
+    new_df = pd.DataFrame.from_dict(
+        {'country': list(my_df['location']), 'continent': list(my_df['continent']), x_axis_var: list(my_df[x_axis_var]),
+         y_axis_var: list(my_df[y_axis_var]), size_dot: list(my_df[size_dot])})
     fig = px.scatter(new_df, x=x_axis_var, y=y_axis_var,
                      size=size_dot, color="continent", hover_name="country",
                      size_max=18)
-
     return fig
 
 
@@ -714,55 +690,57 @@ def update_graph7(country_predict, data_to_predict, data):
     fig = px.line(prediction_df, x="date", y="value")
 
     fig.update_yaxes(title=str(data_to_predict + " predicted for next 3 months"))
+    fig.add_vline(x=x[-91], line_width=1, line_color="red")
 
     return fig
+
 
 @app.callback(
     Output('Choropleth Map', 'figure'),
     Input('chorplethdropdown', 'value'),
-    Input('monthchoroplethmap', 'value'),# gives a numerical value
+    Input('monthchoroplethmap', 'value'),  # gives a numerical value
     Input('month-df', 'data'))
 def choropleth_map(choroplethdropdown, monthchoroplethmap, month_df_loaded):
     my_df = pd.read_json(month_df_loaded, orient='split')
     my_df['date'] = my_df['date'].dt.strftime('%Y-%m-%d')
-    
-    my_df = my_df.groupby(['iso_code','month'], sort=False).mean().reset_index()
-    my_df = my_df[my_df['iso_code'].str.contains('OWID')==False]
-    
-    colorscale = ['#ffd7cd','#e3ada0','#c68475', '#a95c4c','#893427', '#690000']
+
+    my_df = my_df.groupby(['iso_code', 'month'], sort=False).mean().reset_index()
+    my_df = my_df[my_df['iso_code'].str.contains('OWID') == False]
+
+    colorscale = ['#ffd7cd', '#e3ada0', '#c68475', '#a95c4c', '#893427', '#690000']
 
     current_month = months_list[monthchoroplethmap]
     my_df = my_df[my_df['month'] == current_month]
     min_color = np.max(my_df[str(choroplethdropdown)])
     max_color = np.min(my_df[str(choroplethdropdown)])
 
-    fig = px.choropleth(my_df, locations = 'iso_code', color = str(choroplethdropdown),
-    color_continuous_scale = colorscale,hover_name="iso_code",range_color = (min_color,max_color))
+    fig = px.choropleth(my_df, locations='iso_code', color=str(choroplethdropdown),
+                        color_continuous_scale=colorscale, hover_name="iso_code", range_color=(min_color, max_color))
 
     background_color = '#F5F2E8'
 
-    fig.update_layout(font_family = 'Balto',font_color = '#000000',
-    font_size = 18, plot_bgcolor=background_color,
-        geo=dict(
-            showframe=False,
-            showcoastlines=False,
-            countrycolor='#000000',
-            bgcolor= background_color,
-            lakecolor= background_color, 
-            landcolor='rgba(51,17,0,0.2)',
-            subunitcolor='grey'
-            
-        ))
+    fig.update_layout(font_family='Balto', font_color='#000000',
+                      font_size=18, plot_bgcolor=background_color,
+                      geo=dict(
+                          showframe=False,
+                          showcoastlines=False,
+                          countrycolor='#000000',
+                          bgcolor=background_color,
+                          lakecolor=background_color,
+                          landcolor='rgba(51,17,0,0.2)',
+                          subunitcolor='grey'
+
+                      ))
 
     # Delete antartica
     fig.add_trace(go.Choropleth(locations=['ATA'],
-                z=[0],
-                colorscale=[[0,background_color], [1, background_color]],
-                marker_line_color=background_color,
-                showlegend=False,
-                showscale=False)
-        )
-    
+                                z=[0],
+                                colorscale=[[0, background_color], [1, background_color]],
+                                marker_line_color=background_color,
+                                showlegend=False,
+                                showscale=False)
+                  )
+
     return fig
 
 
