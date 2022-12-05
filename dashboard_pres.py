@@ -9,6 +9,7 @@ from utils import *
 import warnings
 import pickle
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 
 warnings.filterwarnings('ignore')
 
@@ -75,7 +76,8 @@ all_col = list(df.columns)
 for col in columns_to_remove:
     all_col.remove(col)
 for col in columns_fixed:
-    all_col.remove(columns_fixed)
+    if col in all_col:
+        all_col.remove(col)
 
 original_df = df
 constraint_added = []
@@ -177,29 +179,33 @@ app.layout = html.Div([
             'color': 'black'
         }
     ),
+    html.H3(
+        'Correlations over time',
+        style={
+            'textAlign': 'left',
+            'color': 'blue'
+        }
+    ),
     html.Div([
         html.Div([
             html.Label('Country or continent'),
             dcc.Dropdown([country for country in df['location'].unique()], df['location'][0], id='country-choice')
         ], style={'width': '48%', 'float': 'left', 'display': 'inline-block'}),
-        html.Div([
-            html.Label('Variable'),
-            dcc.Dropdown([var for var in variables_first_country], variables_first_country[0], id='var-choice'),
-        ], style={'width': '48%', 'display': 'inline-block'}),
-        html.Plaintext('Click on a coefficient to plot the corresponding variable')
-    ], style={'width': '48%', 'display': 'inline-block'}),
+    ]),
     html.Div([
-        dash_table.DataTable(data=temp_df.to_dict('records'),
-                             columns=[{"name": i, "id": i, "selectable": True} for i in temp_df.columns],
-                             id='corr-table')
-    ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
+        dash_table.DataTable(id='corr-table-not-cumu')
+    ]),
     html.Br(),
+    html.H3(
+        'Correlations cumulative with fixed variables',
+        style={
+            'textAlign': 'left',
+            'color': 'blue'
+        }
+    ),
     html.Div([
-        dcc.Graph(id='corr-time-graph')
-    ], style={'width': '48%', 'float': 'left', 'display': 'inline-block', 'padding': '0 20', 'margin-bottom': '5cm'}),
-    html.Div([
-        dcc.Graph(id='corr-graph')
-    ], style={'width': '48%', 'float': 'right', 'display': 'inline-block', 'margin-bottom': '5cm'}),
+        dash_table.DataTable(id='corr-table-cumu')
+    ]),
 
     html.Br(),
     html.H1(
@@ -417,120 +423,75 @@ def change_available_countries_corr(data):
 
 
 @app.callback(
-    Output('var-choice', 'options'),
-    Output('var-choice', 'value'),
-    Input('country-choice', 'value'))
-def var_for_country(country_choice):
-    variables_to_show = variables_each_country[country_choice]
-    for col in columns_to_remove:
-        if col in variables_to_show:
-            variables_to_show.remove(col)
-    for col in columns_fixed:
-        if col in variables_to_show:
-            variables_to_show.remove(col)
-    return variables_to_show, variables_to_show[0]
-
-
-@app.callback(
-    Output('corr-table', 'data'),
-    Output('corr-table', 'columns'),
+    Output('corr-table-not-cumu', 'data'),
+    Output('corr-table-not-cumu', 'columns'),
     Input('country-choice', 'value'),
-    Input('var-choice', 'value'),
     Input('df', 'data'))
-def update_table_corr(country_choice, var_choice, data):
+def update_table_corr(country_choice, data):
     stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    all_features = variables_each_country[country_choice].copy()
+    not_cumu_vars = ['new_cases_per_million', 'new_deaths_per_million', 'excess_mortality', 'icu_patients_per_million',
+                     'hosp_patients_per_million', 'stringency_index', 'reproduction_rate', 'new_tests_per_thousand',
+                     'positive_rate', 'new_vaccinations']
 
-    for column in columns_to_remove:
-        if column in all_features:
-            all_features.remove(column)
+    df_not_cumu = stored_df[stored_df['location'] == country_choice][not_cumu_vars]
 
-    for column in columns_fixed:
-        if column in all_features:
-            all_features.remove(column)
-
-    country_df = stored_df[stored_df['location'] == country_choice][all_features]
-    corr_mat = country_df.corr(method='pearson')
-
-    pos_corr = corr_mat.sort_values(by=[var_choice], ascending=False, inplace=False)[var_choice]
-    pos_corr = pos_corr[pos_corr < 0.9999]
-
-    pos_variables_most_corr = []
-    pos_corr_coeffs = []
-    pos_all_vars = pos_corr.index
-    for var in pos_all_vars:
-        if 'hundred' not in var and 'smoothed' not in var and 'million' not in var and 'thousand' not in var:
-            pos_variables_most_corr.append(var)
-            pos_corr_coeffs.append(pos_corr[var])
-            if len(pos_variables_most_corr) == 5:
-                break
-
-    neg_corr = corr_mat[corr_mat[var_choice] < 0.0]
-    neg_corr = neg_corr.sort_values(by=[var_choice], ascending=True)[var_choice]
-
-    neg_variables_most_corr = []
-    neg_corr_coeffs = []
-    neg_all_vars = neg_corr.index
-    for var in neg_all_vars:
-        neg_variables_most_corr.append(var)
-        neg_corr_coeffs.append(neg_corr[var])
-        if len(neg_variables_most_corr) == 5:
-            break
-    pos_variables_most_corr.extend(neg_variables_most_corr)
-    pos_corr_coeffs.extend(neg_corr_coeffs)
-    corr_dict = {'variables': pos_variables_most_corr,
-                 'correlation coeff to ' + var_choice: pos_corr_coeffs}
+    corr_mat_not_cumu = df_not_cumu.corr(method='pearson')
+    our_cmap = LinearSegmentedColormap.from_list('rg', ["r", "w", "g"], N=256)
+    # corr_mat_not_cumu.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
+    corr_dict = {'variables': corr_mat_not_cumu.index}
+    for col in corr_mat_not_cumu.columns:
+        corr_dict[col] = list(corr_mat_not_cumu[col])
 
     correlation_df = pd.DataFrame(corr_dict)
     correlation_df.set_index('variables')
-    update_columns = [{"name": i, "id": i, "selectable": True} for i in correlation_df.columns]
+    correlation_df.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
 
     return correlation_df.to_dict('records'), update_columns
 
 
 @app.callback(
-    Output('corr-time-graph', 'figure'),
-    Output('corr-graph', 'figure'),
-    Input('country-choice', 'value'),
-    Input('var-choice', 'value'),
-    Input('corr-table', 'active_cell'),
-    Input('corr-table', 'data'),
+    Output('corr-table-cumu', 'data'),
+    Output('corr-table-cumu', 'columns'),
     Input('df', 'data'))
-def update_graphs(country_choice, var_choice, active_cell, data, data_stored):
-    stored_df = pd.read_json(data_stored, orient='split')
+def update_table_corr(data):
+    stored_df = pd.read_json(data, orient='split')
     stored_df['date'] = stored_df['date'].dt.strftime('%Y-%m-%d')
-    if active_cell:
-        cell_clicked = active_cell['row']
-        var_clicked = data[cell_clicked]['variables']
-    else:
-        var_clicked = var_choice
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    all_dates = stored_df[stored_df['location'] == country_choice]['date']
-    data_1 = stored_df[stored_df['location'] == country_choice][var_choice].to_list()
-    fig.add_trace(
-        go.Scatter(x=all_dates, y=data_1, name=var_choice),
-        secondary_y=False,
-    )
-    data_2 = stored_df[stored_df['location'] == country_choice][var_clicked].to_list()
-    fig.add_trace(
-        go.Scatter(x=all_dates, y=data_2, name=var_clicked),
-        secondary_y=True,
-    )
-    fig.update_layout(title=str('Evolution of ' + var_choice + ' and ' + var_clicked + ' over time'))
-    fig.update_xaxes(title_text='Dates')
+    our_cmap = LinearSegmentedColormap.from_list('rg', ["r", "w", "g"], N=256)
 
-    fig.update_yaxes(title_text=var_choice, secondary_y=False)
-    fig.update_yaxes(title_text=var_clicked, secondary_y=True)
+    cumulative_vars = ['total_cases_per_million', 'total_deaths_per_million', 'excess_mortality_cumulative_per_million',
+                       'total_tests_per_thousand', 'total_vaccinations_per_hundred']
+    total_cumu = cumulative_vars.copy()
+    for col in columns_fixed:
+        total_cumu.append(col)
+    final_df_dict = {i: [] for i in total_cumu}
+    final_df = pd.DataFrame.from_dict(final_df_dict)
+    total_cumu.append('iso_code')
+    df_cumu = df[total_cumu]
+    prev_iso = df_cumu['iso_code'].iloc[0]
 
-    fig2 = px.scatter(x=data_1, y=data_2)
-    fig2.update_xaxes(title_text=var_choice)
+    for i in range(len(df_cumu)):
+        curr_iso = df_cumu['iso_code'].iloc[i]
+        if curr_iso != prev_iso:
+            final_df.loc[len(final_df)] = df_cumu.iloc[i].drop('iso_code')
+            prev_iso = curr_iso
+    final_df.loc[len(final_df)] = df_cumu.iloc[len(df_cumu) - 1].drop('iso_code')
+    corr_mat_cumu = final_df.corr(method='pearson')
+    corr_mat_cumu = corr_mat_cumu.drop(cumulative_vars, axis=0)
+    corr_mat_cumu = corr_mat_cumu.drop(columns_fixed, axis=1)
+    # corr_mat_cumu.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
 
-    fig2.update_yaxes(title_text=var_clicked)
-    fig2.update_layout(title=str(var_clicked + ' depending on ' + var_choice),
-                       xaxis={'autorange': False, 'range': [min(data_1), max(data_1)]},
-                       yaxis={'autorange': False, 'range': [min(data_2), max(data_2)]})
-    return fig, fig2
+    corr_dict = {'variables': corr_mat_cumu.index}
+    for col in corr_mat_cumu.columns:
+        corr_dict[col] = list(corr_mat_cumu[col])
+
+    correlation_df = pd.DataFrame(corr_dict)
+    correlation_df.set_index('variables')
+    correlation_df.style.background_gradient(cmap=our_cmap).set_properties(**{'font-size': '20px'})
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in correlation_df.columns]
+
+    return correlation_df.to_dict('records'), update_columns
 
 
 #######################
@@ -560,8 +521,9 @@ def update_dependence_graphs(x_axis_var, y_axis_var, month_slider, size_dot, mon
     trust_df_indexed = trust_df.set_index('location')
     trusts = list(trust_df_indexed.loc[list(cont_df['location'])].fillna(1)['trust_in_gov'])
     my_df['trust_in_gov'] = trusts
-    new_df = pd.DataFrame.from_dict({'country': list(my_df['location']), 'continent': list(my_df['continent']), x_axis_var: list(my_df[x_axis_var]),
-                                    y_axis_var: list(my_df[y_axis_var]), size_dot: list(my_df[size_dot])})
+    new_df = pd.DataFrame.from_dict(
+        {'country': list(my_df['location']), 'continent': list(my_df['continent']), x_axis_var: list(my_df[x_axis_var]),
+         y_axis_var: list(my_df[y_axis_var]), size_dot: list(my_df[size_dot])})
     fig = px.scatter(new_df, x=x_axis_var, y=y_axis_var,
                      size=size_dot, color="continent", hover_name="country",
                      size_max=18)
