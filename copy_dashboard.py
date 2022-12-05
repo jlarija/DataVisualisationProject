@@ -186,72 +186,124 @@ for column in col_geomap:
 #####################
 # DASHBOARD LAYOUT
 app.layout = html.Div([
+
     dcc.Store(data=df.to_json(date_format='iso', orient='split'), id='df'),
     dcc.Store(data=months_df.to_json(date_format='iso', orient='split'), id='month-df'),
 
     dbc.Row(
 
         dbc.Col(
-            html.Div(html.H1('COVID 19 Data Exploration',style = {'color': 'black','font_size': '36px'})),
-            width={"size": 6, "offset": 4},
+                html.Div(html.H1('COVID 19 Data Exploration',style = {'color': 'black','font_size': '36px'})),
+                width={"size": 6, "offset": 4},
                 )
             ),
 
     dbc.Row(
 
         dbc.Col([
-            html.Div([
-                dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
-            html.Div([
-                dcc.Dropdown(none_all_col, none_all_col[0], id='variable-to-filter')
-                    ], style={'width': '39%', 'display': 'inline-block'}),
-            html.Div([
-                dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter')
-                    ], style={'width': '20%', 'display': 'inline-block'}),
-            html.Div([
-                dcc.Input(id='num-to-filter', type='number', value=0),
-                    ], style={'width': '39%', 'display': 'inline-block'}),
-            html.Button(id='filtering-button', n_clicks=0, children='Filter'),
-            html.Div(id='times-clicked')
-                    ], style={'width': '48%', 'display': 'inline-block'})
-                ])
+                html.Div([
+                    dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
+                html.Div([
+                    dcc.Dropdown(none_all_col, none_all_col[0], id='variable-to-filter')
+                        ], style={'width': '35%', 'display': 'inline-block'}),
+                html.Div([
+                    dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter')
+                        ], style={'width': '10%', 'display': 'inline-block'}),
+                html.Div([
+                    dcc.Input(id='num-to-filter', type='number', value=0),
+                        ], style={'width': '39%', 'display': 'inline-block'}),
+                html.Div([html.Button(id='filtering-button', n_clicks=0, children='Filter')
+                ],style={'display': 'inline-block'}),
+                html.Div(id='times-clicked')
+                        ], style={'width': '48%', 'display': 'inline-block'})
+
+                ],  width={"offset": 4})
         ),
+    
+    html.Br(),
 
-    dbc.Row([
+    dbc.Row(
 
-        html.Div([
-            dcc.Dropdown(col_geomap, 'total_cases', id='chorplethdropdown')], 
-            style={'width': '30%', 'display': 'inline-block','textAlign': 'center'}),
-            dcc.Graph(id = 'Choropleth Map'),
-            dcc.Slider(0,len(months_list) - 1,marks={i: str(slider_months[i]) for i in range(len(slider_months))},
-            updatemode='mouseup',value=0,id='monthchoroplethmap')
-        
+        dbc.Col(html.H4('World Situation'),  width={"offset": 5})
+
+            ),
+
+    dbc.Row(
+            
+            dbc.Col(
+                html.Div([
+                dcc.Dropdown(col_geomap, 'total_cases', id='chorplethdropdown', clearable=False)], 
+                style={'width': '26%'}),
+                width={'offset':5}
+
+                    )
+
+            ),
+
+    dbc.Row([     
+
+            dbc.Col([ 
+
+                dcc.Graph(id = 'Choropleth Map'),
+                dcc.Slider(0,len(months_list) - 1,marks={i: str(slider_months[i]) for i in range(len(slider_months))},
+                updatemode='mouseup',value=0,id='monthchoroplethmap')
+
+                    ])
             ]),
+
+    html.Br(),
+    html.Br(),
 
     dbc.Row([
 
         dbc.Col([
-           
-            html.Div([
-            dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
-            id='country-continent-choice')],style={"size":3,'width': '30%', 'display':'inline-block'}),
-            html.Div([dcc.Dropdown(variables_first_country, variables_first_country[0], id='y-axis', multi=True)], 
-            style={'width': '60%','display':'inline-block'}),
-            dcc.Graph(id='variables-graph')
-
+                
+                html.Div([
+                dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
+                id='country-continent-choice')],style={"size":3,'width': '30%', 'display':'inline-block','margin-top':'70px'}),
+                html.Div([dcc.Dropdown(variables_first_country, variables_first_country[0], id='y-axis', multi=True)], 
+                style={'width': '60%','display':'inline-block','margin-top':'70px'}),
                 ],width=6),   
 
         dbc.Col([
-                html.H6('Predictions for the next 6 months'),
+                html.H6('Future predictions'),
                 html.Label("Country or continent"),
                 dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
                 id='country-predictions'),
                 html.Label("Variable to predict"),
                 dcc.Dropdown(variables_first_country, variables_first_country[0], id='var-to-pred'),
+                ],width=6)
+
+            ]),
+
+    dbc.Row([
+
+        dbc.Col([
+                dcc.Graph(id='variables-graph')
+                ],width=6),   
+
+        dbc.Col([
                 dcc.Graph(id='predictions-graph')
                 ],width=6)
 
             ]),
+
+    html.Br(),
+
+    dbc.Row(
+
+        dbc.Col(
+                html.Div(html.H3('Exploring Correlations',style = {'color': 'black','font_size': '30px'})),
+                width={"size": 6, "offset": 4},
+                )
+
+            ), 
+    
+    dbc.Row(
+        
+            dbc.Col()
+
+            )
 
 ])
 
@@ -323,7 +375,7 @@ def choropleth_map(choroplethdropdown, monthchoroplethmap):
 
     fig.update_layout(font_family = 'Balto',font_color = '#000000',
     font_size = 18, plot_bgcolor=background_color,paper_bgcolor = background_color,
-    coloraxis_colorbar_x=-0.15, coloraxis_colorbar_y=0,
+    coloraxis_colorbar_x=-0.15, coloraxis_colorbar_y=0.5,
     margin=dict(l=0, r=0, b=0, t=0,autoexpand=True),
         geo=dict(
             showframe=False,
