@@ -7,6 +7,22 @@ from app import *
 #####################
 # Filtering
 @app.callback(
+    Output('filter-table', 'data'),
+    Output('filter-table', 'columns'),
+    Input('variable-to-filter', 'value')
+)
+def update_info_filtering(variable):
+    info_used = filtering_dict[variable]
+    dict_info = {'variables': list(info_used.keys()),
+                 'value': list(info_used.values())}
+
+    info_df = pd.DataFrame(dict_info)
+    info_df.set_index('variables')
+    update_columns = [{"name": i, "id": i, "selectable": False} for i in info_df.columns]
+    return info_df.to_dict('records'), update_columns
+
+
+@app.callback(
     Output('times-clicked', 'children'),
     Output('filtering-button', 'n_clicks'),
     Output('df', 'data'),
@@ -25,7 +41,7 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
     new_month_df = pd.read_json(month_df_stored, orient='split')
     new_month_df['date'] = new_month_df['date'].dt.strftime('%Y-%m-%d')
     if radio_activate == 'Reset':
-        constraint_added.clear()
+        # constraint_added.clear()
         string = u'0 conditions added'
         times_clicked = 0
         new_df = original_df
@@ -35,8 +51,8 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
         string = u'{} conditions added'.format(max([0, number_conditions_added - 1]))
         times_clicked = max([0, number_conditions_added - 1])
     else:
-        constraint_added.append([var_filter, sign_filter, num_filter])
-        new_df = apply_constraints(new_df, constraint_added)
+        # constraint_added.append([var_filter, sign_filter, num_filter])
+        new_df = apply_constraints(new_df, [var_filter, sign_filter, num_filter])
         new_month_df = get_month_df(new_df)
         string = u'{} conditions added'.format(number_conditions_added)
         times_clicked = number_conditions_added

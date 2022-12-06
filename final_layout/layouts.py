@@ -220,6 +220,7 @@ col_fixed_new_df.insert(0, 'trust_in_gov')
 col_geomap = all_col.copy()
 for column in col_geomap:
     col_geomap.remove(column)
+filtering_dict = info_filtering(df)
 
 layout1 = html.Div([
 
@@ -240,8 +241,8 @@ layout1 = html.Div([
             html.Div([
                 dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
                 html.Div([
-                    dcc.Dropdown(none_all_col, none_all_col[0], id='variable-to-filter')
-                ], style={'width': '35%', 'display': 'inline-block'}),
+                    dcc.Dropdown(none_all_col, 'gdp_per_capita', id='variable-to-filter')
+                ], style={'width': '35%', 'display': 'inline-block','color': 'black'}),
                 html.Div([
                     dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter')
                 ], style={'width': '10%', 'display': 'inline-block'}),
@@ -251,11 +252,21 @@ layout1 = html.Div([
                 html.Div([html.Button(id='filtering-button', n_clicks=0, children='Filter')
                           ], style={'display': 'inline-block'}),
                 html.Div(id='times-clicked')
-            ], style={'width': '48%', 'display': 'inline-block'})
-
+            ], style={'width': '48%', 'display': 'inline-block'}),
+             html.Div([
+        dash_table.DataTable(id='filter-table',style_header={
+                                               'backgroundColor': 'rgb(30, 30, 30)',
+                                               'color': 'white'
+                                           },
+                                           style_data={
+                                               'backgroundColor': 'rgb(50, 50, 50)',
+                                               'color': 'white'
+                                           }, )
+    ], style={'width': '48%', 'display': 'inline-block', 'float': 'right'}),
         ], width={"offset": 4})
     ),
 
+    html.Br(),
     html.Br(),
 
     dbc.Row(
