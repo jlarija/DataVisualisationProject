@@ -337,11 +337,11 @@ layout1 = html.Div([
                 style_data=[{
                 'backgroundColor': 'rgb(50, 50, 50)',
                 'color': 'white'
-            }],
-            style_header=[{
-                'backgroundColor': 'rgb(50, 50, 50)',
-                'color': 'white'
-                }])])
+                }],
+                style_header=[{
+                    'backgroundColor': 'rgb(50, 50, 50)',
+                    'color': 'white'
+                    }])])
                         
                 ])
             ),  

@@ -320,7 +320,7 @@ def update_graph7(country_predict, data_to_predict, data):
     fig.add_shape(
         type="rect",
         xref="paper", yref="paper",
-        x0=0.9, y0=0,
+        x0=0.95, y0=0,
         x1=1, y1=1,
         line=dict(
             color="#B2DFDB",
