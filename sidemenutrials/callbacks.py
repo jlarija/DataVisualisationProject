@@ -55,7 +55,7 @@ def choropleth_map(choroplethdropdown, monthchoroplethmap):
     my_df = my_df.groupby(['iso_code','month'], sort=False).mean().reset_index()
     my_df = my_df[my_df['iso_code'].str.contains('OWID')==False]
     
-    colorscale = ['#ffd7cd','#e3ada0','#c68475', '#a95c4c','#893427', '#690000']
+    colorscale = ['#FFFDE7','#FFF59D','#FFEE58', '#FDD835','#F9A825', '#F57F17']
 
     current_month = months_list[monthchoroplethmap]
     my_df = my_df[my_df['month'] == current_month]
@@ -65,17 +65,17 @@ def choropleth_map(choroplethdropdown, monthchoroplethmap):
     fig = px.choropleth(my_df, locations = 'iso_code', color = str(choroplethdropdown),
     color_continuous_scale = colorscale,hover_name="iso_code",range_color = (min_color,max_color))
 
-    background_color = '#F5F2E8'
+    background_color = '#282a36'
 
-    fig.update_layout(font_family = 'Balto',font_color = '#000000',
+    fig.update_layout(font_family = 'Balto',font_color = '#FFFFFF',
     font_size = 18, plot_bgcolor=background_color,paper_bgcolor = background_color,
     coloraxis_colorbar_x=-0.15, coloraxis_colorbar_y=0.5,
-    margin=dict(l=0, r=0, b=0, t=0,autoexpand=True),
+    margin=dict(l=0, r=20, b=0, t=0,autoexpand=True),
         geo=dict(
             showframe=False,
             showcoastlines=False,
-            countrycolor='#000000',
-            bgcolor= background_color,
+            countrycolor='#FFFFFF',
+            bgcolor=background_color,
             lakecolor= background_color, 
             landcolor='rgba(51,17,0,0.2)',
             subunitcolor='grey'
@@ -120,7 +120,7 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
     used_df = stored_df[stored_df['location'] == country_cont_choice]
 
     fig = go.Figure()
-
+    color_options = ['#ffb14e','#fa8775','#ea5f94','#cd34b5','#9d02d7','#5854e2']
     dates = used_df['date']
     for i in range(len(variables_chosen)):
         if i == 0:
@@ -128,33 +128,37 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
                 x=dates,
                 y=used_df[variables_chosen[i]],
                 name=variables_chosen[i],
+                line=dict(color='#ffd700')
             ))
         else:
             fig.add_trace(go.Scatter(
                 x=dates,
                 y=used_df[variables_chosen[i]],
                 name=variables_chosen[i],
-                yaxis="y" + str(i + 1)
+                yaxis="y" + str(i + 1),
+                line=dict(color=color_options[i])
             ))
 
     layout = {}
-    color_hex = "#" + ''.join([random.choice('ABCDEF0123456789') for i in range(6)])
-    layout['yaxis'] = {'tickfont': {'color': color_hex},
-                       'title': {'font': {'color': color_hex}, 'text': variables_chosen[0]}}
+    layout['yaxis'] = {'tickfont': {'color': '#ffd700'},
+                       'title': {'font': {'color':'#ffd700' }, 'text': variables_chosen[0]}}
     layout['xaxis'] = {'domain': [0.3, 0.9]}
 
     for i in range(len(variables_chosen)):
         if i == 0:
             continue
         else:
-            color_hex = "#" + ''.join([random.choice('ABCDEF0123456789') for j in range(6)])
+            color_hex = color_options[i]
             pos = i * 0.3 / len(variables_chosen)
             layout['yaxis' + str(i + 1)] = {'anchor': 'free', 'position': pos, 'overlaying': 'y', 'side': 'left',
                                             'tickfont': {'color': color_hex},
                                             'title': {'font': {'color': color_hex}, 'text': variables_chosen[i]}}
+    layout['plot_bgcolor'] = '#282a36'
+    layout['paper_bgcolor'] = '#282a36'
 
-    fig.update_layout(layout)
-    fig.update_layout(title='Evolution of the chosen variables over time')
+    fig.update_layout(layout,legend_font_color='#BF360C',
+    margin=dict(l=0, r=5, b=0, t=0,autoexpand=True))
+    # fig.update_layout(title='Evolution of the chosen variables over time')
 
     return fig
 
@@ -312,10 +316,26 @@ def update_graph7(country_predict, data_to_predict, data):
     # plot the predictions
     ##################
     prediction_df = pd.DataFrame({"date": x, "value": y})
-    fig = px.line(prediction_df, x="date", y="value")
-
-    fig.update_yaxes(title=str(data_to_predict + " predicted for next 3 months"))
-
+    fig = px.line(prediction_df, x="date", y="value",)
+    fig.add_shape(
+        type="rect",
+        xref="paper", yref="paper",
+        x0=0.9, y0=0,
+        x1=1, y1=1,
+        line=dict(
+            color="#B2DFDB",
+            width=3,
+        ),
+        layer="below",
+        fillcolor="#B2DFDB",
+        )
+    
+    fig.update_yaxes(title=str(data_to_predict + " predicted for next 3 months"), color='#03DAC6')
+    fig.update_xaxes(color='#03DAC6')
+    fig.update_layout(plot_bgcolor = '#282a36',paper_bgcolor = '#282a36')
+    fig.update_traces(line_color='#03DAC6', line_width=4)
+    
+    
     return fig
 
 #######################

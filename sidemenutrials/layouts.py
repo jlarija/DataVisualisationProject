@@ -39,7 +39,7 @@ CONTENT_STYLE = {
 def nav_bar():
     navbar = html.Div(
         [
-            html.H2("Explore", className="display-4"),
+            html.H2("Explore", className="display-4",style={'color':'black'}),
             html.Hr(),
             dbc.Nav(
                 [
@@ -70,7 +70,7 @@ def fifa_plot(df):
     hover_data =['fifa_rank', 'total_cases_rank']
     )
 
-    fig.update_traces(marker_color = '#000000')
+    fig.update_traces(marker_color = '#FFFFFF')
 
     min_dim = df[['fifa_rank', 'total_cases_rank']].max().idxmax()
     maxi = df[min_dim].max()
@@ -88,22 +88,21 @@ def fifa_plot(df):
                 sizex=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025 + maxi * 0.03,
                 sizey=np.sqrt(row["total_cases"] / df["total_cases"].max()) * maxi * 0.025+ maxi * 0.03,
                 sizing="contain",
-                opacity=0.95,
+                opacity=1,
                 layer="above"
             )
         ) 
 
 
     fig.update_layout(
-        title_text="COVID cases on 09-04-2020 vs Fifa World Ranking for the same date",
-        height=600, width=1000, plot_bgcolor="#FFFFFF")
+        height=600, width=1000, plot_bgcolor="#282a36",paper_bgcolor = '#282a36')
 
 
     # Set y-axes titles
     fig.update_yaxes(title_text="<b>Fifa Rank</b>", showgrid = True, 
-    griddash = 'dash', gridcolor = '#D4D4D4')
+    griddash = 'dash', gridcolor = '#727272',color ='#03DAC6')
     fig.update_xaxes(title_text="<b>COVID Cases Rank</b>", showgrid = True, 
-    griddash = 'dash', gridcolor = '#D4D4D4')
+    griddash = 'dash', gridcolor = '#727272', color ='#03DAC6')
 
     return fig
 
@@ -121,9 +120,9 @@ def plane_data_plot(df):
     airtraffic['new_deaths'] = cc['new_deaths']
     airtraffic['total_vaccinations'] = cc['total_vaccinations']
 
-    color_bins = '#3b6978' 
-    color_line1 = '#e63946'
-    color_line2 = '#975ea9'
+    color_bins = '#00ACC1' 
+    color_line1 = '#C62828'
+    color_line2 = '#FFC857'
 
     fig = go.Figure()
 
@@ -163,25 +162,26 @@ def plane_data_plot(df):
         ))
 
 
-    fig.update_layout(template = 'plotly_white', width=1000,
+    fig.update_layout(plot_bgcolor='#282a36', paper_bgcolor = '#282a36',width=1000,
     margin=dict(l=0, r=10, t=0, b=0),
     legend=dict(
         yanchor="top",
         y=1.3,
         xanchor="left",
-        x=0.5
+        x=0.5,
+        font_color = color_bins
     ) 
     )
-
-    fig.add_layout_image(
-        dict(
-            source=img,
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            sizex=0.45, sizey=0.45,
-            xanchor="right", yanchor="bottom"
-        )
-    )
+    fig.update_xaxes(color = color_bins)
+    # fig.add_layout_image(
+    #     dict(
+    #         source=img,
+    #         xref="paper", yref="paper",
+    #         x=0.5, y=0.5,
+    #         sizex=0.45, sizey=0.45,
+    #         xanchor="right", yanchor="bottom"
+    #     )
+    # )
     
     return fig
 
@@ -222,7 +222,7 @@ layout1 = html.Div([
     dbc.Row(
 
         dbc.Col(
-                html.Div(html.H1('COVID 19 Data Exploration',style = {'color': 'black','font_size': '36px'})),
+                html.Div(html.H1('COVID 19 Data Exploration',style = {'color': 'white','font_size': '36px'})),
                 width={"size": 6, "offset": 4},
                 )
             ),
@@ -319,7 +319,7 @@ layout1 = html.Div([
     dbc.Row(
 
         dbc.Col(
-                html.Div(html.H3('Exploring Correlations',style = {'color': 'black','font_size': '30px','textAlign': 'center'}))
+                html.Div(html.H3('Exploring Correlations',style = {'color': 'white','font_size': '30px','textAlign': 'center'}))
                 )
             ),
     
@@ -333,7 +333,15 @@ layout1 = html.Div([
                     dcc.Dropdown([country for country in df['location'].unique()], df['location'][0], id='country-choice')
                     ], style={'width': '40%', 'float': 'left', 'display': 'inline-block'}),
                 html.Br(),
-                html.Div([dash_table.DataTable(id='corr-table-not-cumu')])
+                html.Div([dash_table.DataTable(id='corr-table-not-cumu',
+                style_data=[{
+                'backgroundColor': 'rgb(50, 50, 50)',
+                'color': 'white'
+            }],
+            style_header=[{
+                'backgroundColor': 'rgb(50, 50, 50)',
+                'color': 'white'
+                }])])
                         
                 ])
             ),  
@@ -344,7 +352,15 @@ layout1 = html.Div([
         dbc.Col([    
             html.H3('Correlations cumulative with fixed variables',style={'textAlign': 'left'}),                
             html.Br(),
-            html.Div([dash_table.DataTable(id='corr-table-cumu')])
+            html.Div([dash_table.DataTable(id='corr-table-cumu',
+            style_data=[{
+                'backgroundColor': 'rgb(50, 50, 50)',
+                'color': 'white'
+            }],
+            style_header=[{
+                'backgroundColor': 'rgb(50, 50, 50)',
+                'color': 'white'
+                }])])
                  
                 ])
             ),
@@ -355,7 +371,7 @@ layout1 = html.Div([
 
         dbc.Col([
             html.H4('Variable dependence on Citizens\'s thrust in the government (and additional fixed variables)',
-            style={'textAlign': 'center','color': 'black'}),
+            style={'textAlign': 'center','color': 'white'}),
                 ])
             ),
 
@@ -402,18 +418,18 @@ layout2 = html.Div([
 
                 dbc.Col([
                         html.Div([html.H1('Additional Unconventional Data to showcase COVID trends',
-                        style={'textAlign': 'center','color': 'black'})]),
+                        style={'textAlign': 'center','color': 'white'})]),
 
                         html.Br(),
                         
                         html.Div([html.H3('Correlation is not causation: football rankings and the spread of COVID',
-                        style={'textAlign': 'center','color': 'black'})]),
+                        style={'textAlign': 'center','color': 'white'})]),
 
                         html.Br(),
 
                         html.Div([html.H6('Where COVID rank refers to the rank in the total cases for the chosen day. A higher COVID rank = more cases \
                             and similarly, a higher FIFA rank means a higher positon in the world footbals\'s association.',
-                        style={'textAlign': 'center','color': 'black','font_size': '16px'})]),
+                        style={'textAlign': 'center','color': 'white','font_size': '16px'})]),
 
                         ])
                     
@@ -433,7 +449,7 @@ layout2 = html.Div([
                 dbc.Col([
 
                     html.Div([html.H3('Fluctuations in freedom: travel data for the EU show \
-                        the same trend as new COVID deaths and cases',style={'textAlign': 'center','color': 'black'})
+                        the same trend as new COVID deaths and cases',style={'textAlign': 'center','color': 'white'})
                         ]),
 
                     dcc.Graph(figure = plane_data_plot(df))
