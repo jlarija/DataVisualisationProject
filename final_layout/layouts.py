@@ -60,7 +60,7 @@ def nav_bar():
 ###############
 ## BEGINNING DATA ANALYSIS (NECESSARY FOR THE PLOTS)
 
-with open('df.pickle', 'rb') as dffile:
+with open('df_alio.pickle', 'rb') as dffile:
     df, variables_each_country = pickle.load(dffile)
 
 img = Image.open('airplane-clipart-transparent-7.png')
@@ -298,7 +298,7 @@ layout1 = html.Div([
     html.Br(),
     html.Br(),
 
-    dbc.Row([
+    dbc.Row(
 
         dbc.Col([
             html.H6('Evolution of multiple variables in time'),
@@ -311,7 +311,13 @@ layout1 = html.Div([
                 html.Label('Variables to show'),
                 dcc.Dropdown(variables_first_country, variables_first_country[0], id='y-axis', multi=True)],
                      style={'width': '60%', 'display': 'inline-block', 'margin-top': '70px'}),
-        ], width=6),
+                    html.Br(),
+                    dcc.Graph(id='variables-graph')
+                ]),
+            
+            ),
+    
+    dbc.Row(
 
         dbc.Col([
             html.H6('Future predictions'),
@@ -320,21 +326,11 @@ layout1 = html.Div([
                          id='country-predictions'),
             html.Label("Variable to predict"),
             dcc.Dropdown(variables_first_country, variables_first_country[0], id='var-to-pred'),
-        ], width=6)
-
-    ]),
-
-    dbc.Row([
-
-        dbc.Col([
-            dcc.Graph(id='variables-graph')
-        ], width=6),
-
-        dbc.Col([
+            html.Br(),
             dcc.Graph(id='predictions-graph')
-        ], width=6)
-
-    ]),
+                ])
+            
+            ),
 
     html.Br(),
 

@@ -68,13 +68,12 @@ def filtering(radio_activate, number_conditions_added, var_filter, sign_filter, 
     Input('monthchoroplethmap', 'value')  # gives a numerical value
 )
 def choropleth_map(choroplethdropdown, monthchoroplethmap):
-    global df
 
     my_df = get_month_df(df)  # Split months cause slider
     my_df = my_df.groupby(['iso_code', 'month'], sort=False).mean().reset_index()
     my_df = my_df[my_df['iso_code'].str.contains('OWID') == False]
 
-    colorscale = ['#FFFDE7', '#FFF59D', '#FFEE58', '#FDD835', '#F9A825', '#F57F17']
+    colorscale = ["#f1cfa2","#dfad87","#ce8a6c","#bc6851","#aa4536","#99221b","#870000"]
 
     current_month = months_list[monthchoroplethmap]
     my_df = my_df[my_df['month'] == current_month]
@@ -375,6 +374,8 @@ def update_graph7(country_predict, data_to_predict, data):
     return fig
 
 
+#######################
+# Correlations
 #######################
 # Correlations
 @app.callback(
