@@ -73,7 +73,7 @@ def choropleth_map(choroplethdropdown, monthchoroplethmap):
     my_df = my_df.groupby(['iso_code', 'month'], sort=False).mean().reset_index()
     my_df = my_df[my_df['iso_code'].str.contains('OWID') == False]
 
-    colorscale = ["#f1cfa2","#dfad87","#ce8a6c","#bc6851","#aa4536","#99221b","#870000"]
+    colorscale = ["#e2e2e2","#c9aba3","#c18c7f","#9e4e3f","#660000"]
 
     current_month = months_list[monthchoroplethmap]
     my_df = my_df[my_df['month'] == current_month]
@@ -171,7 +171,9 @@ def update_graph_multi_var(variables_chosen, country_cont_choice, data):
     layout = {}
     layout['yaxis'] = {'tickfont': {'color': '#ffa600'},
                        'title': {'font': {'color': '#ffa600'}, 'text': variables_chosen[0]}}
-    layout['xaxis'] = {'domain': [0.3, 0.9]}
+    layout['xaxis'] = {'domain': [0.3, 0.9], 
+                        'tickfont': {'color': '#FFFFFF'},
+                       'title': {'font': {'color': '#FFFFFF'}}}
 
     for i in range(len(variables_chosen)):
         if i == 0:
@@ -356,7 +358,7 @@ def update_graph7(country_predict, data_to_predict, data):
     fig.add_shape(
         type="rect",
         xref="paper", yref="paper",
-        x0=0.95, y0=0,
+        x0=0.925, y0=0,
         x1=1, y1=1,
         line=dict(
             color="#B2DFDB",
