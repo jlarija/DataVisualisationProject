@@ -139,7 +139,7 @@ def plane_data_plot(df):
 
     fig.update_layout(xaxis=dict(domain=[0.2, 0.9]), font_size=font_size,
                       yaxis=dict(title="Monthly Air Passengers", titlefont=dict(color=color_bins, ), tickfont=dict(
-                          color=color_bins
+                          color='#0084C1'
                       )),
                       yaxis2=dict(
                           title="Monthly new COVID cases",
@@ -220,6 +220,7 @@ col_fixed_new_df.insert(0, 'trust_in_gov')
 col_geomap = all_col.copy()
 for column in col_geomap:
     col_geomap.remove(column)
+filtering_dict = info_filtering(df)
 
 layout1 = html.Div([
 
@@ -235,42 +236,88 @@ layout1 = html.Div([
     ),
 
     dbc.Row(
+        dbc.Col(html.H6('The dashboard allows to explore data from the COVID dataset uploaded on Our World in Data. The dataset is \
+        updated daily, and the data reflect so. The dashboard has two pages, and navigation is possible with the menu on the left. The "COVID data" page represents \
+            focuses on trends and visualisations of the pandemic, while "Additional COVID Trends" includes additional data to interpret the pandemic. It is possible to filter the data, \
+            by manually inputting a value for the chosen variable and clicking on the filter button. The table serves as an indicator of the available values for the selected variable.', 
+            style={'color': 'white', 'textAlign': 'center'}),
+           )
+    ),
+    
+    dbc.Row(
+
+        dbc.Col([dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
+                html.Div(id='times-clicked')
+                ])
+
+    ),
+
+    dbc.Row([
 
         dbc.Col([
             html.Div([
-                dcc.RadioItems(['Active', 'Reset'], 'Active', id='radio-filtering'),
                 html.Div([
-                    dcc.Dropdown(none_all_col, none_all_col[0], id='variable-to-filter')
-                ], style={'width': '35%', 'display': 'inline-block'}),
+                    dcc.Dropdown(none_all_col, 'gdp_per_capita', id='variable-to-filter')
+                ], style={'width': '30%','color': 'black'}),
                 html.Div([
-                    dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter')
-                ], style={'width': '10%', 'display': 'inline-block'}),
+                    dcc.Dropdown(['>', '>=', '=', '<', '<='], '>', id='sign-to-filter'),
+                ], style={'width': '10%', }),
                 html.Div([
                     dcc.Input(id='num-to-filter', type='number', value=0),
-                ], style={'width': '39%', 'display': 'inline-block'}),
+                ], style={'width': '20%', }),
                 html.Div([html.Button(id='filtering-button', n_clicks=0, children='Filter')
-                          ], style={'display': 'inline-block'}),
-                html.Div(id='times-clicked')
-            ], style={'width': '48%', 'display': 'inline-block'})
+                        ], )
+                    ],)
+                    
+                ]),
 
-        ], width={"offset": 4})
+
+        dbc.Col(
+                html.Div([
+            dash_table.DataTable(id='filter-table',style_header={
+                                                'backgroundColor': '#00d7c6',
+                                                'color': 'white'
+                                            },
+                                            style_data={
+                                                'backgroundColor': '#534E4E',
+                                                'color': 'white'
+                                            }, )
+        ], style={'width': '48%'})
+                ),
+        
+
+            ], justify="evenly"),
+   
+    html.Br(),
+    html.Br(),
+
+    dbc.Row(
+
+        dbc.Col(html.H2('World Overview', style={'color': 'white', 'textAlign': 'center'}))
+
+    ),
+
+    html.Br(),
+    
+    
+    dbc.Row(
+
+        dbc.Col(
+            html.H6('Different variables for the map below can be chosen in the dropdown menu. The slider represents a certain point in time.',
+        style={'color': 'white', 'textAlign': 'center'})
+            
+                ),
     ),
 
     html.Br(),
 
     dbc.Row(
 
-        dbc.Col(html.H4('World Situation'), width={"offset": 5})
-
-    ),
-
-    dbc.Row(
-
         dbc.Col(
             html.Div([
-                dcc.Dropdown(col_geomap, 'total_cases', id='chorplethdropdown', clearable=False)],
+                dcc.Dropdown(col_geomap, 'total_cases', id='chorplethdropdown')],
                 style={'width': '26%'}),
-            width={'offset': 5}
+            # width={'offset': 5}
 
         )
     ),
@@ -286,44 +333,66 @@ layout1 = html.Div([
 
     html.Br(),
     html.Br(),
+    html.Br(),
 
-    dbc.Row([
+    dbc.Row(
+            
+            dbc.Col(html.H2('The Pandemic in Time'),style={'color': 'white', 'textAlign': 'center'})
+        
+        ),
+
+    html.Br(),
+    
+
+    dbc.Row(
 
         dbc.Col([
-            html.H6('Evolution of multiple variables in time'),
+            
+            html.H6('Select a country or a continent, and as many variables as you wish to visualise in the plot.',
+            style={'color': 'white', 'textAlign': 'center'}),
             html.Div([
                 html.Label('Country or continent'),
                 dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
                              id='country-continent-choice')],
-                style={"size": 3, 'width': '30%', 'display': 'inline-block', 'margin-top': '70px'}),
+                style={"size": 3, 'width': '23%', 'display': 'inline-block', 'margin-top': '70px'}),
             html.Div([
                 html.Label('Variables to show'),
                 dcc.Dropdown(variables_first_country, variables_first_country[0], id='y-axis', multi=True)],
                      style={'width': '60%', 'display': 'inline-block', 'margin-top': '70px'}),
-        ], width=6),
+                    html.Br(),
+                    dcc.Graph(id='variables-graph')
+                ]),
+            
+            ),
+
+    html.Br(),
+    html.Br(),
+
+    
+    dbc.Row(
+            
+            dbc.Col([html.H2('What Will The Future Look Like?',style={'color': 'white', 'textAlign': 'center'})])
+        
+        ),
+    
+    dbc.Row(
 
         dbc.Col([
-            html.H6('Future predictions'),
+            html.H6('The following plot represents prediciont for 2.5 months. Select the variable and the country for which the prediction is to be made. For the prediction, regression was used.',
+            style={'color': 'white', 'textAlign': 'center'}),
+            html.Br(),
             html.Label("Country or continent"),
-            dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
-                         id='country-predictions'),
+            html.Div([dcc.Dropdown([country for country in df['location'].unique()], df['location'][0],
+                         id='country-predictions')],style={'width': '40%'}),
             html.Label("Variable to predict"),
-            dcc.Dropdown(variables_first_country, variables_first_country[0], id='var-to-pred'),
-        ], width=6)
-
-    ]),
-
-    dbc.Row([
-
-        dbc.Col([
-            dcc.Graph(id='variables-graph')
-        ], width=6),
-
-        dbc.Col([
+            html.Div([dcc.Dropdown(variables_first_country, variables_first_country[0], id='var-to-pred')
+            ],style={'width': '40%'}
+            ),
+            html.Br(),
             dcc.Graph(id='predictions-graph')
-        ], width=6)
-
-    ]),
+                ])
+            
+            ),
 
     html.Br(),
 
@@ -331,8 +400,14 @@ layout1 = html.Div([
 
         dbc.Col(
             html.Div(
-                html.H3('Exploring Correlations', style={'color': 'white', 'font_size': '30px', 'textAlign': 'center'}))
+                html.H2('Exploring Correlations', style={'color': 'white', 'textAlign': 'center'}))
         )
+    ),
+
+    dbc.Row(
+        dbc.Col( html.H6('The following two tables show the correlation between selected variables. The country can be \
+            selected via the dropdown. Correlations are useful to answer the following questions: what is the impact of a lockdown on a country?\
+                How effective were vaccinations against COVID deaths?', style={'color': 'white', 'textAlign': 'center'}))
     ),
 
     html.Br(),
@@ -345,17 +420,18 @@ layout1 = html.Div([
             html.Br(),
             html.Div([dash_table.DataTable(id='corr-table-not-cumu',
                                            style_header={
-                                               'backgroundColor': 'rgb(30, 30, 30)',
+                                               'backgroundColor': '#5F5F5F',
                                                'color': 'white'
                                            },
                                            style_data={
-                                               'backgroundColor': 'rgb(50, 50, 50)',
+                                               'backgroundColor': '#5F5F5F',
                                                'color': 'white'
                                            }, )])
 
         ])
     ),
     html.Br(),
+
 
     dbc.Row(
 
@@ -364,24 +440,29 @@ layout1 = html.Div([
             html.Br(),
             html.Div([dash_table.DataTable(id='corr-table-cumu',
                                            style_header={
-                                               'backgroundColor': 'rgb(30, 30, 30)',
+                                               'backgroundColor': '#5F5F5F',
                                                'color': 'white'
                                            },
                                            style_data={
-                                               'backgroundColor': 'rgb(50, 50, 50)',
+                                               'backgroundColor': '#5F5F5F',
                                                'color': 'white'
                                            }, )])
 
         ])
     ),
+    
+    html.Br(),
+    html.Br(),
     html.Br(),
 
-    dbc.Row(
 
-        dbc.Col([
-            html.H4('Variable dependence on Citizens\'s thrust in the government (and additional fixed variables)',
-                    style={'textAlign': 'center', 'color': 'white'}),
-        ])
+     dbc.Row(
+        dbc.Col( html.H2('Dependencies', style={'color': 'white', 'textAlign': 'center'}))
+    ),
+
+    dbc.Row(
+        dbc.Col( html.H6('This graph features a new variable, that determines the size of the dots: the trust in the government per country. It is also possible \
+            to select other fixed variables for the size of the dots.', style={'color': 'white', 'textAlign': 'center'}))
     ),
 
     html.Br(),
@@ -392,21 +473,21 @@ layout1 = html.Div([
         dbc.Col([
             html.Div([html.Label('Select x-axis variable'),
                       dcc.Dropdown(all_col, all_col[0], id='x-axis-dependence')
-                      ], style={'width': '30%', 'float': 'left', 'display': 'inline-block'})
+                      ], style={'width': '50%', 'float': 'left', 'display': 'inline-block'})
         ]),
 
         dbc.Col([
             html.Div([
                 html.Label('y-axis'),
                 dcc.Dropdown(all_col, all_col[1], id='y-axis-dependence'),
-            ], style={'width': '30%', 'display': 'inline-block'})
+            ], style={'width': '50%', 'display': 'inline-block'})
         ]),
 
         dbc.Col([
             html.Div([
                 html.Label('Size of the dots'),
                 dcc.Dropdown(col_fixed_new_df, col_fixed_new_df[0], id='size-dot-dependence'),
-            ], style={'width': '30%', 'display': 'inline-block'})
+            ], style={'width': '50%', 'display': 'inline-block'})
         ])
 
     ]),
@@ -460,6 +541,13 @@ layout2 = html.Div([
             html.Div([html.H3('Fluctuations in freedom: travel data for the EU show \
                         the same trend as new COVID deaths and cases', style={'textAlign': 'center', 'color': 'white'})
                       ]),
+
+            html.Br(), 
+
+            html.Div([html.H6('The amount of passengers transported in the EU during 2020 follows a trend inversely proportional to the amount of new cases and new deaths. \
+                            In the summer months, an increase in transportation can be clearly seen, although it is a lower level compared \
+                                to pre-pandemic values. Source: Eurocontrol.',
+                            style={'textAlign': 'center', 'color': 'white', 'font_size': '16px'})]),
 
             dcc.Graph(figure=plane_data_plot(df))
         ])

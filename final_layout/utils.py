@@ -4006,29 +4006,17 @@ def get_weights(features, coeffs):
     return final_dict
 
 
-def generate_data(training_data):
-    new_df = training_data.iloc[:-6]
+def generate_data(training_data, nb_days_used=7):
+    new_df = training_data.iloc[:-(nb_days_used-1)]
     for col in training_data.columns:
-        new_col_1 = []
-        new_col_2 = []
-        new_col_3 = []
-        new_col_4 = []
-        new_col_5 = []
-        new_col_6 = []
-        for i in range(len(training_data) - 6):
-            new_col_1.append(training_data[col].iloc[i + 1])
-            new_col_2.append(training_data[col].iloc[i + 2])
-            new_col_3.append(training_data[col].iloc[i + 3])
-            new_col_4.append(training_data[col].iloc[i + 4])
-            new_col_5.append(training_data[col].iloc[i + 5])
-            new_col_6.append(training_data[col].iloc[i + 6])
-        new_df[str(col) + "_1"] = new_col_1
-        new_df[str(col) + "_2"] = new_col_2
-        new_df[str(col) + "_3"] = new_col_3
-        new_df[str(col) + "_4"] = new_col_4
-        new_df[str(col) + "_5"] = new_col_5
-        new_df[str(col) + "_6"] = new_col_6
-
+        new_cols = []
+        for j in range(1,nb_days_used):
+            new_cols.append([])
+        for i in range(len(training_data) - (nb_days_used-1)):
+            for j in range(1,nb_days_used):
+                new_cols[j-1].append(training_data[col].iloc[i + j])
+        for i in range(1,nb_days_used):
+            new_df.loc[:, str(str(col) + "_"+str(i))] = new_cols[i-1]
     return new_df
 
 
